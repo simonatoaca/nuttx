@@ -39,3 +39,7 @@ endif()
 if(CONFIG_STEPPER_DRV8825)
   target_sources(drivers PRIVATE drv8825.c)
 endif()
+
+if(CONFIG_HAPTIC_DRV2605L)
+  target_sources((drivers PRIVATE drv2605l.c))
+endif()

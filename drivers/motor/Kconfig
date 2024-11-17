@@ -88,3 +88,68 @@ config STEPPER_DRV8825
 		Enables DRV8825 stepper driver.
 
 endif # STEPPER
+
+menuconfig HAPTIC
+	bool "Haptic control drivers"
+	default n
+
+if HAPTIC
+
+config HAPTIC_DRV2605L
+	bool "DRV2605L Haptic Driver"
+	default n
+	select I2C
+	---help---
+		Enables DRV2605L haptic driver
+
+if HAPTIC_DRV2605L
+
+config DRV2605L_I2C_FREQUENCY
+	int "DRV2605L I2C frequency"
+	default 400000
+
+config DRV2605L_EN_PIN
+	int "DRV2605L Enable Pin"
+	default 17
+
+config DRV2605L_IN_TRIG_PIN
+	int "DRV2605L Input/Trigger Pin"
+	default 16
+
+choice
+	prompt "DRV2605L Actuator"
+	default LRA_ACTUATOR
+
+config LRA_ACTUATOR
+	bool "LRA Actuator"
+	---help---
+		The actuator connected to the out +/- pins of the driver is LRA.
+
+config ERM_ACTUATOR
+	bool "ERM Actuator"
+	---help---
+		The actuator connected to the out +/- pins of the driver is ERM.
+
+endchoice # DRV2605L Actuator
+
+choice
+	prompt "DRV2605L Mode"
+	default CLOSED_LOOP_UNIDIR_MODE
+
+config CLOSED_LOOP_UNIDIR_MODE
+	bool "Closed Loop Unidirectional Mode"
+	---help---
+
+config CLOSED_LOOP_BIDIR_MODE
+	bool "Closed Loop Bidirectional Mode"
+	---help---
+
+config OPEN_LOOP_MODE
+	bool "Open Loop Mode"
+	---help---
+
+endchoice # DRV2605L Mode
+
+endif # HAPTIC_DRV2605L
+
+endif # HAPTIC
