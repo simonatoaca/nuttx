@@ -76,15 +76,15 @@ config DRV2605L_I2C_FREQUENCY
 
 config DRV2605L_EN_PIN
 	int "DRV2605L Enable Pin"
-	default 17
+	default 13
 
 config DRV2605L_IN_TRIG_PIN
 	int "DRV2605L Input/Trigger Pin"
-	default 16
+	default 12
 
 choice
 	prompt "DRV2605L Actuator"
-	default LRA_ACTUATOR
+	default ERM_ACTUATOR
 
 config LRA_ACTUATOR
 	bool "LRA Actuator"
@@ -100,19 +100,16 @@ endchoice # DRV2605L Actuator
 
 choice
 	prompt "DRV2605L Mode"
-	default CLOSED_LOOP_UNIDIR_MODE
+	default OPEN_LOOP_MODE
 
 config CLOSED_LOOP_UNIDIR_MODE
 	bool "Closed Loop Unidirectional Mode"
-	---help---
 
 config CLOSED_LOOP_BIDIR_MODE
 	bool "Closed Loop Bidirectional Mode"
-	---help---
 
 config OPEN_LOOP_MODE
 	bool "Open Loop Mode"
-	---help---
 
 endchoice # DRV2605L Mode
 
@@ -122,7 +119,6 @@ choice
 
 config EMPTY
 	bool "No ROM library used"
-	---help---
 
 config TS2200_LIBRARY_A
 	bool "TS2200_LIBRARY_A"

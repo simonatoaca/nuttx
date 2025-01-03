@@ -41,6 +41,11 @@
 #define GPIO_LCD_RST        16
 #define GPIO_LCD_BL         48
 
+/* DRV2605L pins */
+
+#define GPIO_IN_DRV         12
+#define GPIO_EN_DRV         13
+
 /* Button pins definitions */
 
 #define BUTTON_BOOT  0

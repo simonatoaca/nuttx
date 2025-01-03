@@ -216,9 +216,9 @@ struct drv2605l_calib_s
 
   /* Output */
 
-  uint8_t bemf_gain;
-  uint8_t a_cal_comp;
-  uint8_t a_cal_bemf;
+  float bemf_gain;
+  float a_cal_comp;
+  float a_cal_bemf;
   uint8_t diag_result;
 };
 
@@ -236,6 +236,8 @@ struct drv2605l_dev_s
   uint16_t max_effects;
   mutex_t dev_lock;
   mutex_t rtp_lock;
+
+  float vbat;
 };
 
 /****************************************************************************
@@ -372,7 +374,7 @@ static int drv2605l_checkid(FAR struct drv2605l_dev_s *priv)
   /* Read device ID */
 
   devid = drv2605l_getreg8(priv, DRV2605L_STATUS_REG_ADDR);
-  up_mdelay(1);
+  up_mdelay(10);
   devid >>= 5;
 
   iinfo("devid: 0x%02x\n", devid);
@@ -416,25 +418,37 @@ static void drv2605l_haptic_set_gain(FAR struct ff_lowerhalf_s *lower,
   iinfo("called: gain = %d\n", gain);
 }
 
-static int drv2605l_pin_init(FAR struct drv2605l_dev_s *priv)
+// static int drv2605l_pin_init(FAR struct drv2605l_dev_s *priv)
+// {
+//   int ret = 0;
+
+//   ret = IOEXP_SETDIRECTION(priv->ioedev, priv->en_pin, IOEXPANDER_DIRECTION_OUT);
+//   if (ret < 0)
+//     {
+//       ierr("ioexpander set direction error: %d\n", ret);
+//       return -EIO;
+//     }
+
+//   ret = IOEXP_SETDIRECTION(priv->ioedev, priv->int_pin, IOEXPANDER_DIRECTION_OUT);
+//   if (ret < 0)
+//     {
+//       ierr("ioexpander set direction error: %d\n", ret);
+//       return -EIO;
+//     }
+
+//   return ret;
+// }
+
+static float drv2605l_get_vbat(FAR struct drv2605l_dev_s *priv)
 {
-  int ret = 0;
+  uint8_t regval = 0;
+  regval = drv2605l_getreg8(priv, DRV2605L_VBAT_REG_ADDR);
 
-  ret = IOEXP_SETDIRECTION(priv->ioedev, priv->en_pin, IOEXPANDER_DIRECTION_OUT);
-  if (ret < 0)
-    {
-      ierr("ioexpander set direction error: %d\n", ret);
-      return -EIO;
-    }
+  priv->vbat = regval * 5.6 / 255.0;
 
-  ret = IOEXP_SETDIRECTION(priv->ioedev, priv->int_pin, IOEXPANDER_DIRECTION_OUT);
-  if (ret < 0)
-    {
-      ierr("ioexpander set direction error: %d\n", ret);
-      return -EIO;
-    }
-  
-  return ret;
+  iinfo("Battery level is at %.2f%%\n", priv->vbat * 100);
+
+  return priv->vbat;
 }
 
 static int drv2605l_enable(FAR struct drv2605l_dev_s *priv, bool en)
@@ -466,7 +480,7 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
   uint8_t regval = 0;
   FAR struct drv2605l_calib_s *calib_data;
 
-  calib_data = kmm_malloc(sizeof(struct drv2605l_calib_s));
+  calib_data = kmm_zalloc(sizeof(struct drv2605l_calib_s));
   if (calib_data == NULL)
     {
       ierr("failed to allocate drv2605l_calib_s instance\n");
@@ -477,15 +491,71 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
 
   /* Place device in auto calibration mode */
 
+  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, MODE_AUTO_CALIB);
 
   /* Populate input to auto calibration */
 
+  priv->calib->erm_lra = 0;
+
+#ifdef LRA_ACTUATOR
+  priv->calib->erm_lra = 1;
+#endif
+
+  priv->calib->fb_brake_factor = 2;
+  priv->calib->loop_gain = 2;
+  priv->calib->rated_voltage = 0; // TODO
+  priv->calib->od_clamp = 0; // TODO
+  priv->calib->auto_cal_time = 3;
+  priv->calib->drive_time = 0; // TODO
+
+#ifdef LRA_ACTUATOR
+  priv->calib->sample_time = 3;
+  priv->calib->blanking_time = 1;
+  priv->calib->idiss_time = 1;
+  priv->calib->zc_det_time = 0;
+#endif
+
+  /* Write auto calib params */
+  // TODO, for now leave the registers as they are by default
 
   /* Trigger auto calibration */
 
+  ret = drv2605l_putreg8(priv, DRV2605L_GO_REG_ADDR, 0x01);
+
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   /* Store result if calibration was successful */
 
+  do {
+    up_mdelay(200);
+    regval = drv2605l_getreg8(priv, DRV2605L_GO_REG_ADDR);
+  } while (regval > 0);
+
+  regval = drv2605l_getreg8(priv, DRV2605L_STATUS_REG_ADDR);
+
+  if (regval & DRV2605L_DIAG_RESULT_MSK) {
+    ierr("Auto calibration failed\n");
+    return -EINVAL;
+  }
+
+  regval = drv2605l_getreg8(priv, DRV2605L_FEEDBACK_CTRL_REG_ADDR);
+  priv->calib->bemf_gain = regval & 3;
+
+  regval = drv2605l_getreg8(priv, DRV2605L_A_CAL_COMP_REG_ADDR);
+  priv->calib->a_cal_comp = (1 + regval) / 255.0;
+
+  regval = drv2605l_getreg8(priv, DRV2605L_A_CAL_BEMF_REG_ADDR);
+  priv->calib->a_cal_bemf = (regval / 255.0) * 1.22 / priv->calib->bemf_gain;
+
+  regval = drv2605l_getreg8(priv, DRV2605L_STATUS_REG_ADDR);
+  priv->calib->diag_result = (regval & DRV2605L_DIAG_RESULT_MSK) >> 3;
+
+  iinfo("diag_result: %d\nbemf_gain: %.2f\na_cal_comp: %.3f\na_cal_bemf: %.3f\n",
+        priv->calib->diag_result, priv->calib->bemf_gain,
+        priv->calib->a_cal_comp, priv->calib->a_cal_bemf);
 
   return ret;
 }
@@ -493,19 +563,20 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
 static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
 {
   int ret = 0;
+  uint8_t regval = 0;
 
   /* Init EN and IN/TRIG pins */
 
-  drv2605l_pin_init(priv);
+  // drv2605l_pin_init(priv);
 
-  usleep(250);
+  // usleep(250);
 
-  ret = drv2605l_enable(priv, true);
+  // ret = drv2605l_enable(priv, true);
 
-  if (ret < 0)
-    {
-      return ret;
-    }
+  // if (ret < 0)
+  //   {
+  //     return ret;
+  //   }
 
   ret = drv2605l_checkid(priv);
 
@@ -513,6 +584,47 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
     {
       return ret;
     }
+
+  /* Remove device from standby mode */
+
+  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, 0x0);
+
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Put device in desired mode (Open-Loop, Closed-Loop) */
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL3_REG_ADDR);
+
+#ifdef OPEN_LOOP_MODE
+#ifdef LRA_ACTUATOR
+  regval |= 1;
+#else
+  regval |= (1 << 5);
+#endif /* LRA_ACTUATOR */
+#else
+#ifdef LRA_ACTUATOR
+  regval &= ~1;
+#else
+  regval &= ~(1 << 5);
+#endif /* LRA_ACTUATOR */
+#endif /* OPEN_LOOP_MODE */
+
+  ret = drv2605l_putreg8(priv, DRV2605L_CTRL3_REG_ADDR, regval);
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL2_REG_ADDR);
+
+#ifdef CLOSED_LOOP_UNIDIR_MODE
+  regval &= ~(1 << 7);
+#else
+  regval |= (1 << 7);
+#endif
+
+  ret = drv2605l_putreg8(priv, DRV2605L_CTRL2_REG_ADDR, regval);
+
+  /* Start auto calibration */
 
   ret = drv2605l_auto_calib(priv);
 
@@ -524,9 +636,25 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
 
   /* Select ROM library */
 
-  /* Put device in desired mode (Open-Loop, Closed-Loop) */
+  regval = drv2605l_getreg8(priv,  DRV2605L_LIB_SEL_REG_ADDR);
+  regval &= ~(DRV2605L_LIB_SEL_MSK);
 
-  /* Standby / Deassert EN */
+#ifdef TS2200_LIBRARY_A
+  regval |= 1;
+#endif
+
+  ret = drv2605l_putreg8(priv, DRV2605L_LIB_SEL_REG_ADDR, regval);
+
+  if (ret < 0)
+    {
+      return ret;
+    }
+
+  /* Standby and switch to internal trigger */
+
+  regval = drv2605l_getreg8(priv,  DRV2605L_MODE_REG_ADDR);
+
+  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, (regval &= ~DRV2605L_MODE_MSK) | (1 << 6));
 
   return ret;
 }
@@ -542,8 +670,10 @@ int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
   FAR struct drv2605l_dev_s *priv;
   FAR struct ff_lowerhalf_s *lower;
   int ret = 0;
+  int regval = 0;
 
-  DEBUGASSERT(i2c != NULL && ioedev != NULL);
+  // DEBUGASSERT(i2c != NULL && ioedev != NULL);
+  DEBUGASSERT(i2c != NULL);
 
   /* Initialize the drv2605l dev structure */
 
@@ -564,7 +694,7 @@ int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
 
   /* Init upper */
 
-  priv->max_effects = 256; // TODO
+  priv->max_effects = FF_MAX_EFFECTS - 1; // TODO: Change this
   priv->i2c = i2c;
   priv->ioedev = ioedev;
   priv->en_pin = CONFIG_DRV2605L_EN_PIN;
@@ -610,6 +740,16 @@ int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
     }
 
   iinfo("drv2605l registered at %s\n", devpath);
+
+  /* Play waveform to test the driver */
+  ret = drv2605l_putreg8(priv, DRV2605L_WAV_FRM_SEQ1_REG_ADDR, 0x01);
+
+  regval = drv2605l_getreg8(priv,  DRV2605L_MODE_REG_ADDR);
+
+  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, (regval &= ~(1 << 6)));
+
+  ret = drv2605l_putreg8(priv, DRV2605L_GO_REG_ADDR, 0x01);
+
   return OK;
 
 err:

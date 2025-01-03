@@ -31,9 +31,12 @@
 
 #include <nuttx/arch.h>
 #include <nuttx/input/drv2605l.h>
+#include <nuttx/ioexpander/ioexpander.h>
 #include <nuttx/i2c/i2c_master.h>
 
+#include "esp32s3_gpio.h"
 #include "esp32s3_i2c.h"
+#include "esp32s3-hacktorwatch.h"
 
 /****************************************************************************
  * Public Functions
@@ -66,17 +69,25 @@ int board_drv2605l_initialize(int devno, int busno)
   /* Initialize DRV2605L */
 
   // TODO: Initialize ioedev
+  // ioedev = malloc(sizeof(struct ioexpander_dev_s)); // Dummy init
+
   i2c = esp32s3_i2cbus_initialize(busno);
   if (i2c != NULL)
     {
-      /* Then try to register the gas sensor in one of the two I2C
+      /* Then try to register the drv in one of the two I2C
        * available controllers.
        */
+
+      // Init pins outside for now
+      up_mdelay(250);
+      esp32s3_configgpio(GPIO_IN_DRV, OUTPUT);
+      esp32s3_configgpio(GPIO_EN_DRV, OUTPUT);
+      esp32s3_gpiowrite(GPIO_EN_DRV, true);
 
       ret = drv2605l_register(devno, i2c, ioedev);
       if (ret < 0)
         {
-          snerr("ERROR: Error registering DRV2605L in I2C%d\n", busno);
+          ierr("ERROR: Error registering DRV2605L in I2C%d\n", busno);
         }
     }
   else
