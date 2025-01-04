@@ -34,6 +34,37 @@
 #include <nuttx/i2c/i2c_master.h>
 
 /****************************************************************************
+ * Public Types
+ ****************************************************************************/
+
+struct drv2605l_calib_s
+{
+  /* Input */
+
+  uint8_t erm_lra;
+  uint8_t fb_brake_factor;
+  uint8_t loop_gain;
+  uint8_t rated_voltage;
+  uint8_t od_clamp;
+  uint8_t auto_cal_time;
+  uint8_t drive_time;
+
+#ifdef LRA_ACTUATOR
+  uint8_t sample_time;
+  uint8_t blanking_time;
+  uint8_t idiss_time;
+  uint8_t zc_det_time;
+#endif
+
+  /* Output */
+
+  uint8_t bemf_gain;
+  uint8_t a_cal_comp;
+  uint8_t a_cal_bemf;
+  uint8_t diag_result;
+};
+
+/****************************************************************************
  * Public Function Prototypes
  ****************************************************************************/
 
@@ -47,12 +78,15 @@
  *   devno  - ff device number
  *   master - i2c master param
  *   ioedev - io dev pin set
+ *   calib_data - drv2605l_calib_s structure with calibration parameters
+ *                or NULL if default values are used
  *
  * Returned Value:
  *   Zero (OK) on success; a negated errno value on failure.
  *
  ****************************************************************************/
 int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
-                      FAR struct ioexpander_dev_s *ioedev);
+                      FAR struct ioexpander_dev_s *ioedev,
+                      FAR struct drv2605l_calib_s *calib_data);
 
 #endif /* __INCLUDE_NUTTX_INPUT_DRV2605L_H_ */

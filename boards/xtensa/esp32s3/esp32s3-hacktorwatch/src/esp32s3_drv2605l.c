@@ -84,7 +84,7 @@ int board_drv2605l_initialize(int devno, int busno)
       esp32s3_configgpio(GPIO_EN_DRV, OUTPUT);
       esp32s3_gpiowrite(GPIO_EN_DRV, true);
 
-      ret = drv2605l_register(devno, i2c, ioedev);
+      ret = drv2605l_register(devno, i2c, ioedev, NULL);
       if (ret < 0)
         {
           ierr("ERROR: Error registering DRV2605L in I2C%d\n", busno);

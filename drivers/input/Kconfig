@@ -144,6 +144,10 @@ config TS2200_LIBRARY_F
 	bool "TS2200_LIBRARY_F"
 	depends on ERM_ACTUATOR
 
+config LRA_LIBRARY
+	bool "LRA_LIBRARY"
+	depends on LRA_ACTUATOR
+
 endchoice # DRV2605L ROM Library
 
 endif # FF_DRV2605L

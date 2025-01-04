@@ -216,9 +216,9 @@ struct drv2605l_calib_s
 
   /* Output */
 
-  float bemf_gain;
-  float a_cal_comp;
-  float a_cal_bemf;
+  uint8_t bemf_gain;
+  uint8_t a_cal_comp;
+  uint8_t a_cal_bemf;
   uint8_t diag_result;
 };
 
@@ -472,51 +472,121 @@ static int drv2605l_set_mode(FAR struct drv2605l_dev_s *priv, uint8_t mode)
   return ret;
 }
 
-static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
+static int drv2605l_select_library(FAR struct drv2605l_dev_s *priv)
+{
+  uint8_t regval = 0;
+
+  regval = drv2605l_getreg8(priv,  DRV2605L_LIB_SEL_REG_ADDR);
+  regval &= ~(DRV2605L_LIB_SEL_MSK);
+
+#ifdef TS2200_LIBRARY_A
+  regval |= 1;
+#endif
+
+#ifdef TS2200_LIBRARY_B
+  regval |= 2;
+#endif
+
+#ifdef TS2200_LIBRARY_C
+  regval |= 3;
+#endif
+
+#ifdef TS2200_LIBRARY_D
+  regval |= 4;
+#endif
+
+#ifdef TS2200_LIBRARY_E
+  regval |= 5;
+#endif
+
+#ifdef TS2200_LIBRARY_F
+  regval |= 7;
+#endif
+
+#ifdef LRA_LIBRARY
+  regval |= 6;
+#endif
+
+  return drv2605l_putreg8(priv, DRV2605L_LIB_SEL_REG_ADDR, regval);
+}
+
+static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
+                               FAR struct drv2605l_calib_s *calib_data)
 {
   iinfo("performing auto calibration\n");
 
   int ret = 0;
   uint8_t regval = 0;
-  FAR struct drv2605l_calib_s *calib_data;
 
-  calib_data = kmm_zalloc(sizeof(struct drv2605l_calib_s));
-  if (calib_data == NULL)
-    {
-      ierr("failed to allocate drv2605l_calib_s instance\n");
-      return -ENOMEM;
-    }
+  if (!calib_data) {
+    /* Populate with default params */
+
+    calib_data = kmm_zalloc(sizeof(struct drv2605l_calib_s));
+    if (calib_data == NULL)
+      {
+        ierr("failed to allocate drv2605l_calib_s instance\n");
+        return -ENOMEM;
+      }
+
+    calib_data->erm_lra = 0;
+
+#ifdef LRA_ACTUATOR
+    calib_data->erm_lra = 1;
+#endif
+
+    calib_data->fb_brake_factor = 3;
+    calib_data->loop_gain = 1;
+    calib_data->rated_voltage = 0x3e;
+    calib_data->od_clamp = 0x8c;
+    calib_data->auto_cal_time = 2;
+    calib_data->drive_time = 0x13;
+
+#ifdef LRA_ACTUATOR
+    calib_data->sample_time = 3;
+    calib_data->blanking_time = 1;
+    calib_data->idiss_time = 1;
+    calib_data->zc_det_time = 0;
+#endif
+  }
 
   priv->calib = calib_data;
 
   /* Place device in auto calibration mode */
 
-  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, MODE_AUTO_CALIB);
-
-  /* Populate input to auto calibration */
-
-  priv->calib->erm_lra = 0;
-
-#ifdef LRA_ACTUATOR
-  priv->calib->erm_lra = 1;
-#endif
-
-  priv->calib->fb_brake_factor = 2;
-  priv->calib->loop_gain = 2;
-  priv->calib->rated_voltage = 0; // TODO
-  priv->calib->od_clamp = 0; // TODO
-  priv->calib->auto_cal_time = 3;
-  priv->calib->drive_time = 0; // TODO
-
-#ifdef LRA_ACTUATOR
-  priv->calib->sample_time = 3;
-  priv->calib->blanking_time = 1;
-  priv->calib->idiss_time = 1;
-  priv->calib->zc_det_time = 0;
-#endif
+  drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, MODE_AUTO_CALIB);
 
   /* Write auto calib params */
-  // TODO, for now leave the registers as they are by default
+
+  regval = drv2605l_getreg8(priv, DRV2605L_FEEDBACK_CTRL_REG_ADDR);
+  regval &= DRV2605L_BEMF_GAIN_MSK;
+  regval |= (priv->calib->erm_lra << 7) |
+            (priv->calib->fb_brake_factor << 4) |
+            (priv->calib->loop_gain << 2);
+  drv2605l_putreg8(priv, DRV2605L_FEEDBACK_CTRL_REG_ADDR, regval);
+  drv2605l_putreg8(priv, DRV2605L_RATED_VOLTAGE_REG_ADDR, priv->calib->rated_voltage);
+  drv2605l_putreg8(priv, DRV2605L_OD_CLAMP_VOLTAGE_REG_ADDR, priv->calib->od_clamp);
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL1_REG_ADDR);
+  regval |= (priv->calib->drive_time & DRV2605L_DRIVE_TIME_MSK);
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL4_REG_ADDR);
+  regval |= (priv->calib->auto_cal_time & 0x3) << 4;
+
+#ifdef LRA_ACTUATOR
+  regval |= priv->calib->zc_det_time << 6;
+#endif
+
+  drv2605l_putreg8(priv, DRV2605L_CTRL4_REG_ADDR, regval);
+
+#ifdef LRA_ACTUATOR
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL2_REG_ADDR);
+
+  regval |= ((priv->calib->sample_time << 4) |
+            (priv->calib->blanking_time << 2) |
+            (priv->calib->idiss_time)) & ~((1 << 6) | (1 << 7));
+
+  drv2605l_putreg8(priv, DRV2605L_CTRL2_REG_ADDR, regval);
+#endif
 
   /* Trigger auto calibration */
 
@@ -530,7 +600,7 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
   /* Store result if calibration was successful */
 
   do {
-    up_mdelay(200);
+    usleep(2000);
     regval = drv2605l_getreg8(priv, DRV2605L_GO_REG_ADDR);
   } while (regval > 0);
 
@@ -544,23 +614,22 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv)
   regval = drv2605l_getreg8(priv, DRV2605L_FEEDBACK_CTRL_REG_ADDR);
   priv->calib->bemf_gain = regval & 3;
 
-  regval = drv2605l_getreg8(priv, DRV2605L_A_CAL_COMP_REG_ADDR);
-  priv->calib->a_cal_comp = (1 + regval) / 255.0;
-
-  regval = drv2605l_getreg8(priv, DRV2605L_A_CAL_BEMF_REG_ADDR);
-  priv->calib->a_cal_bemf = (regval / 255.0) * 1.22 / priv->calib->bemf_gain;
+  priv->calib->a_cal_comp = drv2605l_getreg8(priv, DRV2605L_A_CAL_COMP_REG_ADDR);
+  priv->calib->a_cal_bemf = drv2605l_getreg8(priv, DRV2605L_A_CAL_BEMF_REG_ADDR);
 
   regval = drv2605l_getreg8(priv, DRV2605L_STATUS_REG_ADDR);
   priv->calib->diag_result = (regval & DRV2605L_DIAG_RESULT_MSK) >> 3;
 
   iinfo("diag_result: %d\nbemf_gain: %.2f\na_cal_comp: %.3f\na_cal_bemf: %.3f\n",
         priv->calib->diag_result, priv->calib->bemf_gain,
-        priv->calib->a_cal_comp, priv->calib->a_cal_bemf);
+        (1 + priv->calib->a_cal_comp) / 255.0,
+        (priv->calib->a_cal_bemf / 255.0) * 1.22 / priv->calib->bemf_gain);
 
   return ret;
 }
 
-static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
+static int drv2605l_init(FAR struct drv2605l_dev_s *priv,
+                         FAR struct drv2605l_calib_s *calib_data)
 {
   int ret = 0;
   uint8_t regval = 0;
@@ -579,15 +648,6 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
   //   }
 
   ret = drv2605l_checkid(priv);
-
-  if (ret < 0)
-    {
-      return ret;
-    }
-
-  /* Remove device from standby mode */
-
-  ret = drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, 0x0);
 
   if (ret < 0)
     {
@@ -626,7 +686,7 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
 
   /* Start auto calibration */
 
-  ret = drv2605l_auto_calib(priv);
+  ret = drv2605l_auto_calib(priv, calib_data);
 
   if (ret < 0)
     {
@@ -636,14 +696,7 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
 
   /* Select ROM library */
 
-  regval = drv2605l_getreg8(priv,  DRV2605L_LIB_SEL_REG_ADDR);
-  regval &= ~(DRV2605L_LIB_SEL_MSK);
-
-#ifdef TS2200_LIBRARY_A
-  regval |= 1;
-#endif
-
-  ret = drv2605l_putreg8(priv, DRV2605L_LIB_SEL_REG_ADDR, regval);
+  ret = drv2605l_select_library(priv);
 
   if (ret < 0)
     {
@@ -665,7 +718,8 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv)
  ****************************************************************************/
 
 int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
-                      FAR struct ioexpander_dev_s *ioedev)
+                      FAR struct ioexpander_dev_s *ioedev,
+                      FAR struct drv2605l_calib_s *calib_data)
 {
   FAR struct drv2605l_dev_s *priv;
   FAR struct ff_lowerhalf_s *lower;
@@ -700,8 +754,6 @@ int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
   priv->en_pin = CONFIG_DRV2605L_EN_PIN;
   priv->int_pin = CONFIG_DRV2605L_IN_TRIG_PIN;
 
-  // nxmutex_init(&priv->dev_lock);
-
   /* Init lowerhalf */
 
   lower                  = &priv->lower;
@@ -721,7 +773,7 @@ int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
 
   /* Init device */
 
-  ret = drv2605l_init(priv);
+  ret = drv2605l_init(priv, calib_data);
 
   if (ret < 0)
     {
