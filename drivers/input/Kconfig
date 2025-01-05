@@ -102,47 +102,47 @@ choice
 	prompt "DRV2605L Mode"
 	default OPEN_LOOP_MODE
 
+config OPEN_LOOP_MODE
+	bool "Open Loop Mode"
+
 config CLOSED_LOOP_UNIDIR_MODE
 	bool "Closed Loop Unidirectional Mode"
 
 config CLOSED_LOOP_BIDIR_MODE
 	bool "Closed Loop Bidirectional Mode"
 
-config OPEN_LOOP_MODE
-	bool "Open Loop Mode"
-
 endchoice # DRV2605L Mode
 
 choice
 	prompt "DRV2605L ROM Library"
-	default EMPTY
+	default NO_LIBRARY
 
-config EMPTY
+config NO_LIBRARY
 	bool "No ROM library used"
 
 config TS2200_LIBRARY_A
 	bool "TS2200_LIBRARY_A"
-	depends on ERM_ACTUATOR
+	depends on ERM_ACTUATOR && OPEN_LOOP_MODE
 
 config TS2200_LIBRARY_B
 	bool "TS2200_LIBRARY_B"
-	depends on ERM_ACTUATOR
+	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
 
 config TS2200_LIBRARY_C
 	bool "TS2200_LIBRARY_C"
-	depends on ERM_ACTUATOR
+	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
 
 config TS2200_LIBRARY_D
 	bool "TS2200_LIBRARY_D"
-	depends on ERM_ACTUATOR
+	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
 
 config TS2200_LIBRARY_E
 	bool "TS2200_LIBRARY_E"
-	depends on LRA_ACTUATOR
+	depends on LRA_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
 
 config TS2200_LIBRARY_F
 	bool "TS2200_LIBRARY_F"
-	depends on ERM_ACTUATOR
+	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
 
 config LRA_LIBRARY
 	bool "LRA_LIBRARY"
