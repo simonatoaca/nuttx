@@ -155,6 +155,8 @@
 #define DRV2605L_OL_LRA_PERIOD_MSK (0x7F)
 #define DRV2605L_GO_BIT_MSK (1)
 
+#define DRV2605L_DATA_FORMAT_RTP_MSK (1 << 3)
+
 /* Result ids */
 
 #define AUTO_CALIB_PASSED (0)
@@ -538,9 +540,33 @@ static void drv2605l_rtp_work_routine(FAR void *arg)
   iinfo("start\n");
   FAR struct drv2605l_dev_s *priv = (FAR struct drv2605l_dev_s *)arg;
   FAR struct ff_effect *effect = priv->current_effect;
+  uint8_t regval = 0;
+  int16_t level = effect->u.constant.level;
+  float percent = 0;
 
-  drv2605l_putreg8(priv, DRV2605L_RTP_INPUT_REG_ADDR,
-                   effect->u.constant.level);
+  /* TODO: Calculate level based on Open-Loop/Closed-Loop and customize after LRA/ERM */
+
+  iinfo("level before conversion: %d (0x%x)\n", level, level);
+
+  // percent = (level + INT16_MAX) * 1.f / UINT16_MAX;
+  percent = level * 1.f / INT16_MAX;
+  iinfo("percent: %f\n", percent);
+
+  /* Scale level to fit in 8-bits and consider RTP_DATA_FORMAT */
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL3_REG_ADDR);
+
+  if (regval & DRV2605L_DATA_FORMAT_RTP_MSK) {
+    /* RTP Unsigned */
+    regval = (0xff * percent);
+    iinfo("RTP Unsigned value: 0x%x\n", regval);
+  } else {
+    regval = (0xff * percent) - 0x80;
+    iinfo("RTP Signed value: 0x%x\n", regval);
+  }
+
+  // drv2605l_putreg8(priv, DRV2605L_RTP_INPUT_REG_ADDR,
+  //                  effect->u.constant.level);
 
   drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, MODE_RTP);
 
@@ -646,7 +672,7 @@ static float drv2605l_get_vbat(FAR struct drv2605l_dev_s *priv)
 
   priv->vbat = regval * 5.6 / 255.0;
 
-  iinfo("Battery level is at %.2f%%\n", priv->vbat * 100);
+  iinfo("battery level is at %.2f%%\n", priv->vbat * 100);
 
   return priv->vbat;
 }
