@@ -62,6 +62,7 @@
 
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #define MAX(a, b) (((a) > (b)) ? (a) : (b))
+#define ABS(a) ((a) < 0 ? (-a) : a)
 
 #define DRV2605L_ADDR (0x5A)  /* I2C Slave Address */
 #define DRV2605L_FREQ CONFIG_DRV2605L_I2C_FREQUENCY
@@ -221,7 +222,7 @@ struct drv2605l_calib_s
   uint8_t auto_cal_time;
   uint8_t drive_time;
 
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
   uint8_t sample_time;
   uint8_t blanking_time;
   uint8_t idiss_time;
@@ -264,7 +265,7 @@ struct drv2605l_dev_s
  * Private Function Prototypes
  ****************************************************************************/
 
-static void drv2605l_rom_timer_func(wdparm_t arg);
+static void drv2605l_timer_func(wdparm_t arg);
 
 
 /****************************************************************************
@@ -432,16 +433,19 @@ static int drv2605l_haptic_erase(FAR struct ff_lowerhalf_s *lower,
   return OK;
 }
 
-static void drv2605l_rom_standby_work_routine(FAR void *arg)
+static void drv2605l_standby_work_routine(FAR void *arg)
 {
   iinfo("start");
   uint8_t regval = 0;
   FAR struct drv2605l_dev_s *priv = (FAR struct drv2605l_dev_s *)arg;
+
+  /* In case of waveform playing, check the GO bit */
+
   regval = drv2605l_getreg8(priv, DRV2605L_GO_REG_ADDR);
 
   if (regval) {
     wd_start(&priv->wd_timer, MSEC2TICK(300),
-          drv2605l_rom_timer_func, (wdparm_t)priv);
+          drv2605l_timer_func, (wdparm_t)priv);
     return;
   }
 
@@ -450,33 +454,13 @@ static void drv2605l_rom_standby_work_routine(FAR void *arg)
   drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, (1 << 6));
 }
 
-static void drv2605l_force_standby_work_routine(FAR void *arg)
-{
-  iinfo("start");
-  uint8_t regval = 0;
-  FAR struct drv2605l_dev_s *priv = (FAR struct drv2605l_dev_s *)arg;
-
-  /* Enter standby */
-
-  drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, (1 << 6));
-}
-
-static void drv2605l_rom_timer_func(wdparm_t arg)
+static void drv2605l_timer_func(wdparm_t arg)
 {
   iinfo("start\n");
   FAR struct drv2605l_dev_s *priv = (FAR struct drv2605l_dev_s *)arg;
 
   work_queue(HPWORK, &priv->haptic_work,
-             drv2605l_rom_standby_work_routine, priv, 0);
-}
-
-static void drv2605l_rtp_timer_func(wdparm_t arg)
-{
-  iinfo("start\n");
-  FAR struct drv2605l_dev_s *priv = (FAR struct drv2605l_dev_s *)arg;
-
-  work_queue(HPWORK, &priv->haptic_work,
-             drv2605l_force_standby_work_routine, priv, 0);
+             drv2605l_standby_work_routine, priv, 0);
 }
 
 static void drv2605l_rom_work_routine(FAR void *arg)
@@ -532,7 +516,7 @@ static void drv2605l_rom_work_routine(FAR void *arg)
   /* Check periodically on the GO bit and put the driver in standby */
 
   wd_start(&priv->wd_timer, MSEC2TICK(250),
-          drv2605l_rom_timer_func, (wdparm_t)priv);
+          drv2605l_timer_func, (wdparm_t)priv);
 }
 
 static void drv2605l_rtp_work_routine(FAR void *arg)
@@ -544,12 +528,44 @@ static void drv2605l_rtp_work_routine(FAR void *arg)
   int16_t level = effect->u.constant.level;
   float percent = 0;
 
-  /* TODO: Calculate level based on Open-Loop/Closed-Loop and customize after LRA/ERM */
-
   iinfo("level before conversion: %d (0x%x)\n", level, level);
 
-  // percent = (level + INT16_MAX) * 1.f / UINT16_MAX;
+#ifdef CONFIG_OPEN_LOOP_MODE
+  /* In Open Loop, negative drive values are allowed
+   * (meaning counter-clockwise rotation for ERM,
+   *   or 180-degree phase shift for LRA)
+   * So, negative magnitudes map to negative drive [-100%, 0%]
+   * and positive magnitudes map to positive drive [0%, 100%]
+   */
   percent = level * 1.f / INT16_MAX;
+  percent *= 0.5;
+  percent += 0.5;
+#endif
+
+#ifdef CONFIG_CLOSED_LOOP_UNIDIR_MODE
+  /* In Closed Loop Unidir Mode, negative drive values
+   * are not allowed. 0% drive would mean Full Braking,
+   * and is not recommended. 50% means 1/2 Rated Voltage,
+   * 100% is Rated Voltage magnitude.
+   * So, the absolute value of the magnitude is used.
+   */
+  percent = ABS(level) * 1.f / INT16_MAX;
+  percent = MAX(percent, 0.1); /* Ensure at least 10% to avoid Full Braking */
+#endif
+
+#ifdef CONFIG_CLOSED_LOOP_BIDIR_MODE
+  /* In Closed Loop Bidir Mode, negative drive values
+   * are not allowed. [0%, 50%) drive would mean Full Braking,
+   * 75% means 1/2 Rated Voltage,
+   * 100% is Rated Voltage magnitude.
+   * So, the absolute value of the magnitude is used and the
+   * percent is scaled to fit in [50%, 100%]
+   */
+  percent = ABS(level) * 1.f / INT16_MAX;
+  percent *= 0.5;
+  percent += 0.5;
+#endif
+
   iinfo("percent: %f\n", percent);
 
   /* Scale level to fit in 8-bits and consider RTP_DATA_FORMAT */
@@ -557,7 +573,6 @@ static void drv2605l_rtp_work_routine(FAR void *arg)
   regval = drv2605l_getreg8(priv, DRV2605L_CTRL3_REG_ADDR);
 
   if (regval & DRV2605L_DATA_FORMAT_RTP_MSK) {
-    /* RTP Unsigned */
     regval = (0xff * percent);
     iinfo("RTP Unsigned value: 0x%x\n", regval);
   } else {
@@ -565,13 +580,13 @@ static void drv2605l_rtp_work_routine(FAR void *arg)
     iinfo("RTP Signed value: 0x%x\n", regval);
   }
 
-  // drv2605l_putreg8(priv, DRV2605L_RTP_INPUT_REG_ADDR,
-  //                  effect->u.constant.level);
+  drv2605l_putreg8(priv, DRV2605L_RTP_INPUT_REG_ADDR,
+                   regval);
 
   drv2605l_putreg8(priv, DRV2605L_MODE_REG_ADDR, MODE_RTP);
 
   wd_start(&priv->wd_timer, MSEC2TICK(effect->replay.length),
-          drv2605l_rtp_timer_func, (wdparm_t)priv);
+          drv2605l_timer_func, (wdparm_t)priv);
 }
 
 static void drv2605l_play_current_effect(FAR struct drv2605l_dev_s *priv)
@@ -589,7 +604,7 @@ static void drv2605l_play_current_effect(FAR struct drv2605l_dev_s *priv)
     return;
   }
 
-  /* RTP for now, TODO: PWM, Analog maybe */
+  /* RTP */
 
   if (effect->type == FF_CONSTANT) {
     work_queue(HPWORK, &priv->haptic_work,
@@ -598,18 +613,16 @@ static void drv2605l_play_current_effect(FAR struct drv2605l_dev_s *priv)
     return;
   }
 
-  /* Play effect from ROM or RTP/PWM */
-
   if (effect->type == FF_PERIODIC) {
     if (effect->u.periodic.waveform == FF_CUSTOM) {
       /* Play effect from ROM library */
-#ifndef NO_LIBRARY
+#ifndef CONFIG_NO_LIBRARY
       work_queue(HPWORK, &priv->haptic_work,
                 drv2605l_rom_work_routine, priv,
                 MSEC2TICK(effect->replay.delay));
 #else
       ierr("Cannot use FF_CUSTOM when no library is selected\n");
-#endif /* !NO_LIBRARY */
+#endif /* !CONFIG_NO_LIBRARY */
       return;
     }
   }
@@ -705,31 +718,31 @@ static int drv2605l_select_library(FAR struct drv2605l_dev_s *priv)
   regval = drv2605l_getreg8(priv,  DRV2605L_LIB_SEL_REG_ADDR);
   regval &= ~(DRV2605L_LIB_SEL_MSK);
 
-#ifdef TS2200_LIBRARY_A
+#ifdef CONFIG_TS2200_LIBRARY_A
   regval |= 1;
 #endif
 
-#ifdef TS2200_LIBRARY_B
+#ifdef CONFIG_TS2200_LIBRARY_B
   regval |= 2;
 #endif
 
-#ifdef TS2200_LIBRARY_C
+#ifdef CONFIG_TS2200_LIBRARY_C
   regval |= 3;
 #endif
 
-#ifdef TS2200_LIBRARY_D
+#ifdef CONFIG_TS2200_LIBRARY_D
   regval |= 4;
 #endif
 
-#ifdef TS2200_LIBRARY_E
+#ifdef CONFIG_TS2200_LIBRARY_E
   regval |= 5;
 #endif
 
-#ifdef TS2200_LIBRARY_F
+#ifdef CONFIG_TS2200_LIBRARY_F
   regval |= 7;
 #endif
 
-#ifdef LRA_LIBRARY
+#ifdef CONFIG_LRA_LIBRARY
   regval |= 6;
 #endif
 
@@ -756,7 +769,7 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
 
     calib_data->erm_lra = 0;
 
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
     calib_data->erm_lra = 1;
 #endif
 
@@ -767,7 +780,7 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
     calib_data->auto_cal_time = 2;
     calib_data->drive_time = 0x13;
 
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
     calib_data->sample_time = 3;
     calib_data->blanking_time = 1;
     calib_data->idiss_time = 1;
@@ -798,13 +811,13 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
   regval = drv2605l_getreg8(priv, DRV2605L_CTRL4_REG_ADDR);
   regval |= (priv->calib->auto_cal_time & 0x3) << 4;
 
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
   regval |= priv->calib->zc_det_time << 6;
 #endif
 
   drv2605l_putreg8(priv, DRV2605L_CTRL4_REG_ADDR, regval);
 
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
   regval = drv2605l_getreg8(priv, DRV2605L_CTRL2_REG_ADDR);
 
   regval |= ((priv->calib->sample_time << 4) |
@@ -884,14 +897,14 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv,
 
   regval = drv2605l_getreg8(priv, DRV2605L_CTRL3_REG_ADDR);
 
-#ifdef OPEN_LOOP_MODE
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_OPEN_LOOP_MODE
+#ifdef CONFIG_LRA_ACTUATOR
   regval |= 1;
 #else
   regval |= (1 << 5);
 #endif /* LRA_ACTUATOR */
 #else
-#ifdef LRA_ACTUATOR
+#ifdef CONFIG_LRA_ACTUATOR
   regval &= ~1;
 #else
   regval &= ~(1 << 5);
@@ -902,13 +915,23 @@ static int drv2605l_init(FAR struct drv2605l_dev_s *priv,
 
   regval = drv2605l_getreg8(priv, DRV2605L_CTRL2_REG_ADDR);
 
-#ifdef CLOSED_LOOP_UNIDIR_MODE
+#ifdef CONFIG_CLOSED_LOOP_UNIDIR_MODE
   regval &= ~(1 << 7);
 #else
   regval |= (1 << 7);
 #endif
 
   ret = drv2605l_putreg8(priv, DRV2605L_CTRL2_REG_ADDR, regval);
+
+
+#ifdef CONFIG_CLOSED_LOOP_UNIDIR_MODE
+  /* Set DATA_FORMAT_RTP = 1 */
+
+  regval = drv2605l_getreg8(priv, DRV2605L_CTRL3_REG_ADDR);
+  regval |= DRV2605L_DATA_FORMAT_RTP_MSK;
+
+  drv2605l_putreg8(priv, DRV2605L_CTRL3_REG_ADDR, regval);
+#endif
 
   /* Start auto calibration */
 
