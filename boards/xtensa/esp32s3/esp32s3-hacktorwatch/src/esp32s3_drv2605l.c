@@ -1,5 +1,5 @@
 /****************************************************************************
- * boards/xtensa/esp32s3/common/src/esp32s3_drv2605l.c
+ * boards/xtensa/esp32s3/esp32s3-hacktorwatch/src/esp32s3_drv2605l.c
  *
  * SPDX-License-Identifier: Apache-2.0
  *
@@ -60,16 +60,12 @@
 
 int board_drv2605l_initialize(int devno, int busno)
 {
-  FAR struct ioexpander_dev_s *ioedev;
   FAR struct i2c_master_s *i2c;
   int ret;
 
   sninfo("Initializing DRV2605L!\n");
 
   /* Initialize DRV2605L */
-
-  // TODO: Initialize ioedev
-  // ioedev = malloc(sizeof(struct ioexpander_dev_s)); // Dummy init
 
   i2c = esp32s3_i2cbus_initialize(busno);
   if (i2c != NULL)
@@ -78,13 +74,14 @@ int board_drv2605l_initialize(int devno, int busno)
        * available controllers.
        */
 
-      // Init pins outside for now
+      /* Init pins and enable the driver */
+
       up_mdelay(250);
       esp32s3_configgpio(GPIO_IN_DRV, OUTPUT);
       esp32s3_configgpio(GPIO_EN_DRV, OUTPUT);
       esp32s3_gpiowrite(GPIO_EN_DRV, true);
 
-      ret = drv2605l_register(devno, i2c, ioedev, NULL);
+      ret = drv2605l_register(devno, i2c, NULL);
       if (ret < 0)
         {
           ierr("ERROR: Error registering DRV2605L in I2C%d\n", busno);

@@ -1,5 +1,5 @@
 /****************************************************************************
- * /boards/xtensa/esp32s3/esp32s3-hacktorwatch/src/esp32s3_bringup.c
+ * boards/xtensa/esp32s3/esp32s3-hacktorwatch/src/esp32s3_bringup.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -218,6 +218,7 @@ int esp32s3_bringup(void)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize LCD.\n");
     }
+
   ret = lcddev_register(0);
   if (ret < 0)
     {

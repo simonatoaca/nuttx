@@ -77,7 +77,6 @@ struct drv2605l_calib_s
  * Input Parameters:
  *   devno  - ff device number
  *   master - i2c master param
- *   ioedev - io dev pin set
  *   calib_data - drv2605l_calib_s structure with calibration parameters
  *                or NULL if default values are used
  *
@@ -85,8 +84,8 @@ struct drv2605l_calib_s
  *   Zero (OK) on success; a negated errno value on failure.
  *
  ****************************************************************************/
+
 int drv2605l_register(int devno, FAR struct i2c_master_s *i2c,
-                      FAR struct ioexpander_dev_s *ioedev,
                       FAR struct drv2605l_calib_s *calib_data);
 
 #endif /* __INCLUDE_NUTTX_INPUT_DRV2605L_H_ */
