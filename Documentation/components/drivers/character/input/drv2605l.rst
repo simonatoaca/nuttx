@@ -1,0 +1,59 @@
+==========================
+DRV2605L Haptic Driver
+==========================
+
+The DRV2605L Haptic Driver provides vibration effects,
+using either an ERM or a LRA actuator. It uses
+the **force-feedback** driver model, borrowed from Linux.
+
+The driver has plenty of features, but, for the moment, only
+the RTP mode and playing of effects from the device's ROM
+are supported.
+
+#. **Configuration**
+
+    In ``menuconfig``, under ``Input Drivers``, the user
+    should select the pins, the actuator used, the preferred
+    mode of operation, and, based on that, a library for prebuilt
+    effects. More details can be found in the datasheet.
+
+#. **Initialization**
+
+    For the DRV2605L to be used in conjunction with a board, it
+    needs to be registered in a file with a name such as ``<chip>_drv2605l.c``
+    (e.g. ``esp32s3_drv2605l.c``), placed probably in the ``<board>/src``
+    directory.
+
+    For simplicity, the gpios used are initialized before the registering
+    of the driver, using the board's specific gpio functions. For now,
+    only the EN pin is needed, but in the future, IN might also need
+    initialization (IN can be used as an external trigger, or to drive
+    pwm/analog inputs to the drv2605l).
+
+    Aside from the needed pins, the I2C bus used for communication also
+    needs initialization.
+
+    Lastly, the user can provide calibration parameters to the driver,
+    using the ``drv2605l_calib_s`` structure found in
+    ``include/nuttx/input/drv2605l.h``. The driver uses default
+    values if ``NULL`` is passed in the register call.
+
+    A truncated version of a registering sequence for an esp32s3-based
+    board can look like this:
+
+    .. code-block:: c
+
+        i2c = esp32s3_i2cbus_initialize(busno);
+
+        up_mdelay(250);
+        esp32s3_configgpio(CONFIG_DRV2605L_EN_PIN, OUTPUT);
+        esp32s3_gpiowrite(CONFIG_DRV2605L_EN_PIN, true);
+
+        // use default values for calib
+        ret = drv2605l_register(devno, i2c, NULL);
+        if (ret < 0)
+        {
+            ierr("ERROR: Error registering DRV2605L in I2C%d\n", busno);
+        }
+
+#. **Usage in an app**

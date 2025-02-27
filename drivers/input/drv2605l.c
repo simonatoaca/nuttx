@@ -558,7 +558,7 @@ static int drv2605l_haptic_erase(FAR struct ff_lowerhalf_s *lower,
   return OK;
 }
 
-static float drv2605l_get_vbat(FAR struct drv2605l_dev_s *priv)
+static void drv2605l_get_vbat(FAR struct drv2605l_dev_s *priv)
 {
   uint8_t regval = 0;
   regval = drv2605l_getreg8(priv, DRV2605L_VBAT_REG_ADDR);

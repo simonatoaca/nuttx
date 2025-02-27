@@ -43,8 +43,8 @@
 
 /* DRV2605L pins */
 
-#define GPIO_IN_DRV         12
-#define GPIO_EN_DRV         13
+#define GPIO_IN_DRV         CONFIG_DRV2605L_IN_TRIG_PIN
+#define GPIO_EN_DRV         CONFIG_DRV2605L_EN_PIN
 
 /* Button pins definitions */
 
