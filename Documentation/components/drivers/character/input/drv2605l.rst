@@ -5,16 +5,15 @@ DRV2605L Haptic Driver
 The DRV2605L Haptic Driver provides vibration effects,
 using either an ERM or a LRA actuator. It uses
 the **force-feedback** driver model, borrowed from Linux.
-
 The driver has plenty of features, but, for the moment, only
 the RTP mode and playing of effects from the device's ROM
 are supported.
 
 #. **Configuration**
 
-    In ``menuconfig``, under ``Input Drivers``, the user
-    should select the pins, the actuator used, the preferred
-    mode of operation, and, based on that, a library for prebuilt
+    In ``menuconfig``, the user should select the pins,
+    the actuator used, the preferred mode of operation,
+    and, based on that, a library for prebuilt
     effects. More details can be found in the datasheet.
 
 #. **Initialization**
@@ -57,3 +56,61 @@ are supported.
         }
 
 #. **Usage in an app**
+
+    An example of a force-feedback app: ``nuttx-apps/testing/fftest/fftest.c``.
+    Effects need to be uploaded to the driver, then they can be played.
+    The ``ff_effect`` structure is populated based on what the driver used
+    supports and is specific to the implementation. Here are the 2 ways
+    an effect can be specified for the drv2605l:
+
+    1. Constant effect (RTP mode)
+ 
+        .. code-block:: c
+
+            effect.type = FF_CONSTANT;
+            effect.id = -1;                   /* Driver will assign an id */
+            effect.u.constant.level = 0x4000; /* Strength : 50 % */
+            effect.replay.length = 1000;      /* Duration (ms) */
+            effect.replay.delay = 500;        /* Time to wait after trigger (ms) */
+        
+        .. code-block:: c
+
+            /* Strength : 25 %, but 
+             * - counter-rotation for ERM
+             * - 180 degree shift in phase for LRA
+             */
+            effect.u.constant.level = -0x2000;
+
+
+    2. Periodic, custom effect (ROM library effect)
+
+        Expected custom_data field:
+        [effect_id, wait_time,  ...., wait_time, effect_id, wait_time]
+        with a maximum of 8 non-zero fields
+        (wait_time = 0 => not written to any registers).
+        Maximum custom_len is 16 (8 pairs of wait time and id).
+
+        Single effect:
+
+        .. code-block:: c
+
+            effect.type = FF_PERIODIC;
+            effect.id = -1;
+            effect.u.periodic.waveform = FF_CUSTOM;
+            effect.u.periodic.custom_len = 1;      /* max 16 */
+            effect.u.periodic.custom_data =
+                calloc(effect.u.periodic.custom_len, sizeof(int16_t));
+            effect.u.periodic.custom_data[0] = 47; /* ROM effect 47 */
+            effect.replay.delay = 1000;            /* Time to wait after trigger (ms) */
+
+
+        Multiple effects, with a wait time between them:
+
+        .. code-block:: c
+
+            effect.u.periodic.custom_len = 3;       /* max 16 */
+            effect.u.periodic.custom_data =
+                calloc(effect.u.periodic.custom_len, sizeof(int16_t));
+            effect.u.periodic.custom_data[0] = 120; /* ROM effect 47 */
+            effect.u.periodic.custom_data[1] = 200; /* Wait time of 200 ms */
+            effect.u.periodic.custom_data[2] = 41;  /* ROM effect 41 */
