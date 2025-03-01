@@ -84,14 +84,14 @@ config DRV2605L_IN_TRIG_PIN
 
 choice
 	prompt "DRV2605L Actuator"
-	default ERM_ACTUATOR
+	default DRV2605L_ERM_ACTUATOR
 
-config LRA_ACTUATOR
+config DRV2605L_LRA_ACTUATOR
 	bool "LRA Actuator"
 	---help---
 		The actuator connected to the out +/- pins of the driver is LRA.
 
-config ERM_ACTUATOR
+config DRV2605L_ERM_ACTUATOR
 	bool "ERM Actuator"
 	---help---
 		The actuator connected to the out +/- pins of the driver is ERM.
@@ -100,53 +100,53 @@ endchoice # DRV2605L Actuator
 
 choice
 	prompt "DRV2605L Mode"
-	default OPEN_LOOP_MODE
+	default DRV2605L_OPEN_LOOP_MODE
 
-config OPEN_LOOP_MODE
+config DRV2605L_OPEN_LOOP_MODE
 	bool "Open Loop Mode"
 
-config CLOSED_LOOP_UNIDIR_MODE
+config DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 	bool "Closed Loop Unidirectional Mode"
 
-config CLOSED_LOOP_BIDIR_MODE
+config DRV2605L_CLOSED_LOOP_BIDIR_MODE
 	bool "Closed Loop Bidirectional Mode"
 
 endchoice # DRV2605L Mode
 
 choice
 	prompt "DRV2605L ROM Library"
-	default NO_LIBRARY
+	default DRV2605L_NO_LIBRARY
 
-config NO_LIBRARY
+config DRV2605L_NO_LIBRARY
 	bool "No ROM library used"
 
-config TS2200_LIBRARY_A
+config DRV2605L_TS2200_LIBRARY_A
 	bool "TS2200_LIBRARY_A"
-	depends on ERM_ACTUATOR && OPEN_LOOP_MODE
+	depends on DRV2605L_ERM_ACTUATOR && DRV2605L_OPEN_LOOP_MODE
 
-config TS2200_LIBRARY_B
+config DRV2605L_TS2200_LIBRARY_B
 	bool "TS2200_LIBRARY_B"
-	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
+	depends on DRV2605L_ERM_ACTUATOR && !DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 
-config TS2200_LIBRARY_C
+config DRV2605L_TS2200_LIBRARY_C
 	bool "TS2200_LIBRARY_C"
-	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
+	depends on DRV2605L_ERM_ACTUATOR && !DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 
-config TS2200_LIBRARY_D
+config DRV2605L_TS2200_LIBRARY_D
 	bool "TS2200_LIBRARY_D"
-	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
+	depends on DRV2605L_ERM_ACTUATOR && !DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 
-config TS2200_LIBRARY_E
+config DRV2605L_TS2200_LIBRARY_E
 	bool "TS2200_LIBRARY_E"
-	depends on LRA_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
+	depends on DRV2605L_LRA_ACTUATOR && !DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 
-config TS2200_LIBRARY_F
+config DRV2605L_TS2200_LIBRARY_F
 	bool "TS2200_LIBRARY_F"
-	depends on ERM_ACTUATOR && !CLOSED_LOOP_UNIDIR_MODE
+	depends on DRV2605L_ERM_ACTUATOR && !DRV2605L_CLOSED_LOOP_UNIDIR_MODE
 
-config LRA_LIBRARY
+config DRV2605L_LRA_LIBRARY
 	bool "LRA_LIBRARY"
-	depends on LRA_ACTUATOR
+	depends on DRV2605L_LRA_ACTUATOR
 
 endchoice # DRV2605L ROM Library
 
