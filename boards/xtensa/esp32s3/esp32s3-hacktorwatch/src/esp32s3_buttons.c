@@ -1,5 +1,5 @@
 /****************************************************************************
- * /boards/xtensa/esp32s3/esp32s3-hacktorwatch/src/esp32s3_buttons.c
+ * boards/xtensa/esp32s3/esp32s3-hacktorwatch/src/esp32s3_buttons.c
  *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -38,6 +38,27 @@
 #include "esp32s3-hacktorwatch.h"
 
 /****************************************************************************
+ * Private Types
+ ****************************************************************************/
+
+struct btn_data_s
+  {
+    uint32_t pin;
+    gpio_pinattr_t attr;
+  };
+
+/****************************************************************************
+ * Private Data
+ ****************************************************************************/
+
+static struct btn_data_s buttons[] =
+  {
+    {.pin = BUTTON_BOOT, .attr = INPUT_FUNCTION_2 | PULLUP},
+    {.pin = BUTTON_UP, .attr = INPUT_FUNCTION_2 | PULLUP},
+    {.pin = BUTTON_DOWN, .attr = INPUT_FUNCTION_2 | PULLUP},
+  };
+
+/****************************************************************************
  * Public Functions
  ****************************************************************************/
 
@@ -54,10 +75,14 @@
 
 uint32_t board_button_initialize(void)
 {
-  esp32s3_configgpio(BUTTON_BOOT, INPUT_FUNCTION_2 | PULLUP);
-  esp32s3_configgpio(BUTTON_UP, INPUT_FUNCTION_2 | PULLUP);
-  esp32s3_configgpio(BUTTON_DOWN, INPUT_FUNCTION_2 | PULLUP);
-  return 1;
+  uint32_t btn_num = sizeof(buttons) / sizeof(struct btn_data_s);
+
+  for (uint32_t i = 0; i < btn_num; i++)
+    {
+      btn_num += esp32s3_configgpio(buttons[i].pin, buttons[i].attr);
+    }
+
+  return btn_num;
 }
 
 /****************************************************************************
@@ -75,41 +100,45 @@ uint32_t board_buttons(void)
 {
   uint8_t ret = 0;
   int i = 0;
+  int j = 0;
   int n = 0;
+  uint32_t btn_num = sizeof(buttons) / sizeof(struct btn_data_s);
 
-  /* TODO: Implement reading from the rest of the buttons */
-  bool b0 = esp32s3_gpioread(BUTTON_BOOT);
-
-  for (i = 0; i < 10; i++)
+  for (i = 0; i < btn_num; i++)
     {
-      up_mdelay(1);
+      bool b0 = esp32s3_gpioread(buttons[i].pin);
 
-      bool b1 = esp32s3_gpioread(BUTTON_BOOT);
-
-      if (b0 == b1)
+      for (j = 0; j < 10; j++)
         {
-          n++;
+          up_mdelay(1);
+
+          bool b1 = esp32s3_gpioread(buttons[i].pin);
+
+          if (b0 == b1)
+            {
+              n++;
+            }
+          else
+            {
+              n = 0;
+            }
+
+          if (3 == n)
+            {
+              break;
+            }
+
+          b0 = b1;
         }
-      else
+
+      iinfo("b=%d n=%d\n", b0, n);
+
+      /* Low value means that the button is pressed */
+
+      if (!b0)
         {
-          n = 0;
+          ret |= (i + 1);
         }
-
-      if (3 == n)
-        {
-          break;
-        }
-
-      b0 = b1;
-    }
-
-  iinfo("b=%d n=%d\n", b0, n);
-
-  /* Low value means that the button is pressed */
-
-  if (!b0)
-    {
-      ret = 0x1;
     }
 
   return ret;
@@ -133,7 +162,7 @@ int board_button_irq(int id, xcpt_t irqhandler, void *arg)
   int ret;
   DEBUGASSERT(id == 0);
 
-  int irq = ESP32S3_PIN2IRQ(BUTTON_BOOT);
+  int irq = ESP32S3_PIN2IRQ(buttons[id].pin);
 
   if (irqhandler != NULL)
     {
