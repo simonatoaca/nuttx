@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/imx8/imx8_boot.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -33,6 +35,7 @@
 #  include <nuttx/page.h>
 #endif
 
+#include <arch/barriers.h>
 #include <arch/chip/chip.h>
 #include "arm64_arch.h"
 #include "arm64_internal.h"
@@ -87,7 +90,7 @@ void arm64_el_init(void)
   if (el == 3)
     {
       write_sysreg(CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC, cntfrq_el0);
-      ARM64_ISB();
+      UP_ISB();
     }
 }
 

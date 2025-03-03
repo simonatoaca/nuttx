@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/z16/include/irq.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -109,6 +111,13 @@ static inline_function void up_set_current_regs(FAR chipreg_t *regs)
 
 #define up_getusrpc(regs) \
     (((FAR chipreg_t *)((regs) ? (regs) : up_current_regs()))[REG_PC])
+
+/****************************************************************************
+ * Name: up_getusrsp
+ ****************************************************************************/
+
+#define up_getusrsp(regs) \
+    ((uintptr_t)((FAR uint32_t*)(regs))[REG_SP])
 
 #undef EXTERN
 #ifdef __cplusplus

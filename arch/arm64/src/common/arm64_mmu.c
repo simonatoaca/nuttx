@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/common/arm64_mmu.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -28,6 +30,7 @@
 #include <assert.h>
 
 #include <nuttx/arch.h>
+#include <arch/barriers.h>
 #include <arch/irq.h>
 #include <arch/chip/chip.h>
 
@@ -153,10 +156,10 @@
 #define TCR_PS_BITS             TCR_PS_BITS_4GB
 #endif
 
-#ifdef CONFIG_MM_KASAN_SW_TAGS
-#define TCR_KASAN_SW_FLAGS (TCR_TBI0 | TCR_TBI1 | TCR_ASID_8)
+#ifdef CONFIG_ARM64_TBI
+#define TCR_TBI_FLAGS (TCR_TBI0 | TCR_TBI1 | TCR_ASID_8)
 #else
-#define TCR_KASAN_SW_FLAGS 0
+#define TCR_TBI_FLAGS 0
 #endif
 
 /****************************************************************************
@@ -262,7 +265,7 @@ static uint64_t get_tcr(int el)
    */
 
   tcr |= TCR_TG0_4K | TCR_SHARED_INNER | TCR_ORGN_WBWA |
-         TCR_IRGN_WBWA | TCR_KASAN_SW_FLAGS;
+         TCR_IRGN_WBWA | TCR_TBI_FLAGS;
 
   return tcr;
 }
@@ -574,8 +577,7 @@ static void enable_mmu_el3(unsigned int flags)
 
   /* Ensure these changes are seen before MMU is enabled */
 
-  ARM64_DSB();
-  ARM64_ISB();
+  UP_MB();
 
   /* Enable the MMU and data cache */
 
@@ -588,7 +590,7 @@ static void enable_mmu_el3(unsigned int flags)
 
   /* Ensure the MMU enable takes effect immediately */
 
-  ARM64_ISB();
+  UP_ISB();
 #ifdef CONFIG_MMU_DEBUG
   sinfo("MMU enabled with dcache\n");
 #endif
@@ -607,8 +609,7 @@ static void enable_mmu_el1(unsigned int flags)
 
   /* Ensure these changes are seen before MMU is enabled */
 
-  ARM64_DSB();
-  ARM64_ISB();
+  UP_MB();
 
   /* Enable the MMU and data cache */
 
@@ -621,7 +622,7 @@ static void enable_mmu_el1(unsigned int flags)
 
   /* Ensure the MMU enable takes effect immediately */
 
-  ARM64_ISB();
+  UP_ISB();
 #ifdef CONFIG_MMU_DEBUG
   sinfo("MMU enabled with dcache\n");
 #endif

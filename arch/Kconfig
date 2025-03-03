@@ -145,7 +145,7 @@ config ARCH_X86_64
 	select LIBC_ARCH_ELF_64BIT if LIBC_ARCH_ELF
 	select ARCH_TOOLCHAIN_GNU
 	select ARCH_HAVE_BACKTRACE
-	select ARCH_HAVE_FORK
+	select ARCH_HAVE_FORK if !BUILD_KERNEL
 	select ARCH_HAVE_SETJMP
 	select ARCH_HAVE_PERF_EVENTS
 	---help---
@@ -158,6 +158,7 @@ config ARCH_XTENSA
 	select ARCH_HAVE_INTERRUPTSTACK
 	select ARCH_HAVE_STACKCHECK
 	select ARCH_HAVE_CUSTOMOPT
+	select ARCH_HAVE_THREAD_LOCAL
 	select ARCH_HAVE_TCBINFO
 	select ARCH_HAVE_STDARG_H
 	select ARCH_HAVE_SETJMP if ARCH_TOOLCHAIN_GNU
@@ -488,6 +489,11 @@ config ARCH_HAVE_RESET
 config ARCH_HAVE_TESTSET
 	bool
 	default n
+
+config ARCH_HAVE_CUSTOM_TESTSET
+	bool
+	default n
+	select ARCH_HAVE_TESTSET
 
 config ARCH_HAVE_THREAD_LOCAL
 	bool
@@ -1274,11 +1280,6 @@ config ARCH_HIPRI_INTERRUPT
 		is extended to any other family, then this discussion will have to
 		be generalized.
 
-		If ARMV7M_USEBASEPRI is selected, then interrupts will be disabled
-		by setting the BASEPRI register to NVIC_SYSH_DISABLE_PRIORITY so
-		that most interrupts will not have execution priority.  SVCall must
-		have execution priority in all cases.
-
 		In the normal cases, interrupts are not nest-able and all interrupts
 		run at an execution priority between NVIC_SYSH_PRIORITY_MIN and
 		NVIC_SYSH_PRIORITY_MAX (with NVIC_SYSH_PRIORITY_MAX reserved for
@@ -1396,7 +1397,7 @@ config RAM_SIZE
 		does not execute out of RAM but from FLASH, then you may designate
 		any block of RAM as "primary."
 
-if BOOT_RUNFROMFLASH && ARCH_USE_MMU
+if BOOT_RUNFROMFLASH
 
 config FLASH_START
 	hex "Boot FLASH start address (physical)"
@@ -1408,6 +1409,7 @@ config FLASH_START
 config FLASH_VSTART
 	hex "Boot FLASH start address (virtual)"
 	default 0x0
+	depends on ARCH_USE_MMU
 	---help---
 		The virtual start address of installed boot FLASH.  "Boot" FLASH
 		refers to the FLASH that you link program code into.
@@ -1419,7 +1421,7 @@ config FLASH_SIZE
 		The size in bytes of the installed boot FLASH.  "Boot" FLASH
 		refers to the FLASH that you link program code into.
 
-endif # BOOT_RUNFROMFLASH && ARCH_USE_MMU
+endif # BOOT_RUNFROMFLASH
 
 config ARCH_HAVE_SDRAM
 	bool

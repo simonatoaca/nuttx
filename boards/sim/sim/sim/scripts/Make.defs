@@ -76,7 +76,7 @@ endif
 
 ifeq ($(CONFIG_COVERAGE_ALL),y)
   ifeq ($(CONFIG_ARCH_TOOLCHAIN_GCC),y)
-    ARCHOPTIMIZATION += -fprofile-generate -ftest-coverage
+    ARCHOPTIMIZATION += -fprofile-arcs -ftest-coverage -fno-inline
   else ifeq ($(CONFIG_ARCH_TOOLCHAIN_CLANG),y)
     ARCHOPTIMIZATION += -fprofile-instr-generate -fcoverage-mapping
   endif
@@ -89,7 +89,7 @@ endif
 ifeq ($(CONFIG_SIM_ASAN),y)
   ARCHOPTIMIZATION += -fsanitize=address -fsanitize-address-use-after-scope
   ARCHOPTIMIZATION += -fsanitize=pointer-compare -fsanitize=pointer-subtract
-else ifeq ($(CONFIG_MM_KASAN_ALL),y)
+else ifeq ($(CONFIG_MM_KASAN_INSTRUMENT_ALL),y)
   ARCHOPTIMIZATION += -fsanitize=kernel-address
 endif
 
@@ -149,8 +149,12 @@ ifeq ($(CONFIG_SIM_M32),y)
   ARCHCFLAGS += -m32
   ARCHCXXFLAGS += -m32
 else
-  ARCHCFLAGS += -fno-pic -mcmodel=large
-  ARCHCXXFLAGS += -fno-pic -mcmodel=large
+  ARCHCFLAGS += -fno-pic
+  ARCHCXXFLAGS += -fno-pic
+  ifneq ($(CONFIG_HOST_MACOS),y)
+    ARCHCFLAGS += -mcmodel=medium
+    ARCHCXXFLAGS += -mcmodel=medium
+  endif
 endif
 
 # LLVM style architecture flags
@@ -175,9 +179,9 @@ else ifeq ($(CONFIG_HOST_ARM),y)
 endif
 
 ifeq ($(CONFIG_HOST_LINUX),y)
-  LLVM_ABITYPE := gnu
+  LLVM_ABITYPE := sysv
 else ifeq ($(CONFIG_HOST_MACOS),y)
-  LLVM_ABITYPE := darwin
+  LLVM_ABITYPE := sysv
 endif
 
 ARCHPICFLAGS = -fpic
@@ -296,9 +300,9 @@ ifeq ($(CONFIG_HOST_MACOS),y)
 else
   LDFLAGS += -Wl,--gc-sections
 
-  # Let the symbol table link from 0x50000000
+  # Let the symbol table link from 0x40000000
   # which is more convenient for debugging.
-  LDFLAGS += -Wl,-Ttext-segment=0x50000000
+  LDFLAGS += -Wl,-Ttext-segment=0x40000000
 endif
 
 ifeq ($(CONFIG_DEBUG_LINK_MAP),y)

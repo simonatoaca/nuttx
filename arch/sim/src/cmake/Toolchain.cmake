@@ -1,6 +1,8 @@
 # ##############################################################################
 # arch/sim/src/cmake/Toolchain.cmake
 #
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements.  See the NOTICE file distributed with this work for
 # additional information regarding copyright ownership.  The ASF licenses this
@@ -25,6 +27,32 @@ endif()
 
 if(WIN32)
   return()
+endif()
+
+# LLVM style architecture flags
+if(CONFIG_HOST_X86_64)
+  if(CONFIG_SIM_M32)
+    set(LLVM_ARCHTYPE "x86")
+    set(LLVM_CPUTYPE "i686")
+  else()
+    set(LLVM_ARCHTYPE "x86_64")
+    set(LLVM_CPUTYPE "skylake")
+  endif()
+elseif(CONFIG_HOST_X86_32)
+  set(LLVM_ARCHTYPE "x86")
+  set(LLVM_CPUTYPE "i686")
+elseif(CONFIG_HOST_ARM64)
+  set(LLVM_ARCHTYPE "aarch64")
+  set(LLVM_CPUTYPE "cortex-a53")
+elseif(CONFIG_HOST_ARM)
+  set(LLVM_ARCHTYPE "arm")
+  set(LLVM_CPUTYPE "cortex-a9")
+endif()
+
+if(CONFIG_HOST_LINUX OR CONFIG_HOST_MACOS)
+  set(LLVM_ABITYPE "sysv")
+elseif(WIN32)
+  set(LLVM_ABITYPE "msvc")
 endif()
 
 # NuttX is sometimes built as a native target. In that case, the __NuttX__ macro
@@ -87,7 +115,7 @@ if(CONFIG_STACK_USAGE_WARNING)
 endif()
 
 if(CONFIG_COVERAGE_ALL)
-  add_compile_options(-fprofile-generate -ftest-coverage)
+  add_compile_options(-fprofile-arcs -ftest-coverage -fno-inline)
 endif()
 
 if(CONFIG_PROFILE_ALL OR CONFIG_SIM_PROFILE)
@@ -101,7 +129,7 @@ if(CONFIG_SIM_ASAN)
   add_compile_options(-fsanitize=pointer-compare)
   add_compile_options(-fsanitize=pointer-subtract)
   add_link_options(-fsanitize=address)
-elseif(CONFIG_MM_KASAN_ALL)
+elseif(CONFIG_MM_KASAN_INSTRUMENT_ALL)
   add_compile_options(-fsanitize=kernel-address)
 endif()
 
@@ -179,6 +207,9 @@ endif()
 if(CONFIG_SIM_M32)
   add_compile_options(-m32)
   add_link_options(-m32)
+elseif(NOT APPLE)
+  add_compile_options(-no-pie)
+  add_link_options(-Wl,-no-pie)
 endif()
 
 if(CONFIG_LIBCXX)
@@ -194,4 +225,8 @@ if(APPLE)
 else()
   add_link_options(-Wl,--gc-sections)
   add_link_options(-Wl,-Ttext-segment=0x40000000)
+endif()
+
+if(CONFIG_HOST_LINUX)
+  add_link_options(-Wl,-z,noexecstack)
 endif()

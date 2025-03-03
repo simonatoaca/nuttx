@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/sparc/include/sparc_v8/irq.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -562,7 +564,7 @@ struct xcptcontext
  * This method returns the entire PSR contents.
  */
 
-static inline uint32_t sparc_disable_interrupts(void)
+static inline_function uint32_t sparc_disable_interrupts(void)
 {
   register uint32_t psr __asm__("g1"); /* return value of trap handler */
   __asm__ volatile ("ta %1\n\t" : "=r" (psr) : "i" (SPARC_SWTRAP_IRQDIS));
@@ -574,7 +576,7 @@ static inline uint32_t sparc_disable_interrupts(void)
  * psr is the PSR returned by sparc_disable_interrupts.
  */
 
-static inline void sparc_enable_interrupts(uint32_t psr)
+static inline_function void sparc_enable_interrupts(uint32_t psr)
 {
   register uint32_t _psr __asm__("g1") = psr; /* input to trap handler */
 

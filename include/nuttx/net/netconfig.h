@@ -64,6 +64,18 @@
  *                NET_SOCK_PROTOCOL);
  */
 
+/* The TCP/UDP stack, which is used for determining HAVE_PFINET(6)_SOCKETS */
+
+#undef NET_TCP_HAVE_STACK
+#if defined(CONFIG_NET_TCP) && !defined(CONFIG_NET_TCP_NO_STACK)
+#  define NET_TCP_HAVE_STACK 1
+#endif
+
+#undef NET_UDP_HAVE_STACK
+#if defined(CONFIG_NET_UDP) && !defined(CONFIG_NET_UDP_NO_STACK)
+#  define NET_UDP_HAVE_STACK 1
+#endif
+
 /* The address family that we used to create the socket really does not
  * matter.  It should, however, be valid in the current configuration.
  */
@@ -76,12 +88,14 @@
 #  define HAVE_INET_SOCKETS
 
 #  if (defined(CONFIG_NET_IPv4) && (defined(NET_UDP_HAVE_STACK) || \
-       defined(NET_TCP_HAVE_STACK))) || defined(CONFIG_NET_ICMP_SOCKET)
+       defined(NET_TCP_HAVE_STACK) || defined(CONFIG_NET_USRSOCK))) || \
+       defined(CONFIG_NET_ICMP_SOCKET)
 #    define HAVE_PFINET_SOCKETS
 #  endif
 
 #  if (defined(CONFIG_NET_IPv6) && (defined(NET_UDP_HAVE_STACK) || \
-       defined(NET_TCP_HAVE_STACK))) || defined(CONFIG_NET_ICMPv6_SOCKET)
+       defined(NET_TCP_HAVE_STACK) || defined(CONFIG_NET_USRSOCK))) || \
+       defined(CONFIG_NET_ICMPv6_SOCKET)
 #    define HAVE_PFINET6_SOCKETS
 #  endif
 #endif

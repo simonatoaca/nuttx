@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/include/armv8-m/irq.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -63,11 +65,7 @@
  */
 
 #define REG_R13             (0)  /* R13 = SP at time of interrupt */
-#ifdef CONFIG_ARMV8M_USEBASEPRI
-#  define REG_BASEPRI       (1)  /* BASEPRI */
-#else
-#  define REG_PRIMASK       (1)  /* PRIMASK */
-#endif
+#define REG_BASEPRI         (1)  /* BASEPRI */
 #define REG_R4              (2)  /* R4 */
 #define REG_R5              (3)  /* R5 */
 #define REG_R6              (4)  /* R6 */
@@ -265,18 +263,6 @@ struct xcptcontext
  * Public Data
  ****************************************************************************/
 
-/* g_current_regs[] holds a references to the current interrupt level
- * register storage structure.  If is non-NULL only during interrupt
- * processing.  Access to g_current_regs[] must be through the
- * [get/set]_current_regs for portability.
- */
-
-/* For the case of architectures with multiple CPUs, then there must be one
- * such value for each processor that can receive an interrupt.
- */
-
-extern volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
-
 /****************************************************************************
  * Inline functions
  ****************************************************************************/
@@ -292,8 +278,7 @@ extern volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
 
 /* Get/set the PRIMASK register */
 
-static inline uint8_t getprimask(void) always_inline_function;
-static inline uint8_t getprimask(void)
+static always_inline_function uint8_t getprimask(void)
 {
   uint32_t primask;
   __asm__ __volatile__
@@ -306,8 +291,7 @@ static inline uint8_t getprimask(void)
   return (uint8_t)primask;
 }
 
-static inline void setprimask(uint32_t primask) always_inline_function;
-static inline void setprimask(uint32_t primask)
+static always_inline_function void setprimask(uint32_t primask)
 {
   __asm__ __volatile__
     (
@@ -317,14 +301,12 @@ static inline void setprimask(uint32_t primask)
       : "memory");
 }
 
-static inline void cpsie(void) always_inline_function;
-static inline void cpsie(void)
+static always_inline_function void cpsie(void)
 {
   __asm__ __volatile__ ("\tcpsie  i\n");
 }
 
-static inline void cpsid(void) always_inline_function;
-static inline void cpsid(void)
+static always_inline_function void cpsid(void)
 {
   __asm__ __volatile__ ("\tcpsid  i\n");
 }
@@ -335,8 +317,7 @@ static inline void cpsid(void)
  * lower priority level as the BASEPRI value.
  */
 
-static inline uint8_t getbasepri(void) always_inline_function;
-static inline uint8_t getbasepri(void)
+static always_inline_function uint8_t getbasepri(void)
 {
   uint32_t basepri;
 
@@ -350,8 +331,7 @@ static inline uint8_t getbasepri(void)
   return (uint8_t)basepri;
 }
 
-static inline void setbasepri(uint32_t basepri) always_inline_function;
-static inline void setbasepri(uint32_t basepri)
+static always_inline_function void setbasepri(uint32_t basepri)
 {
   __asm__ __volatile__
     (
@@ -365,55 +345,27 @@ static inline void setbasepri(uint32_t basepri)
 
 /* Disable IRQs */
 
-static inline void up_irq_disable(void) always_inline_function;
-static inline void up_irq_disable(void)
+static always_inline_function void up_irq_disable(void)
 {
-#ifdef CONFIG_ARMV8M_USEBASEPRI
   /* Probably raising priority */
 
   raisebasepri(NVIC_SYSH_DISABLE_PRIORITY);
-#else
-  __asm__ __volatile__ ("\tcpsid  i\n");
-#endif
 }
 
 /* Save the current primask state & disable IRQs */
 
-static inline irqstate_t up_irq_save(void)
-always_inline_function noinstrument_function;
-static inline irqstate_t up_irq_save(void)
+static always_inline_function irqstate_t up_irq_save(void)
 {
-#ifdef CONFIG_ARMV8M_USEBASEPRI
   /* Probably raising priority */
 
   uint8_t basepri = getbasepri();
   raisebasepri(NVIC_SYSH_DISABLE_PRIORITY);
   return (irqstate_t)basepri;
-
-#else
-
-  unsigned short primask;
-
-  /* Return the current value of primask register and set
-   * bit 0 of the primask register to disable interrupts
-   */
-
-  __asm__ __volatile__
-    (
-     "\tmrs    %0, primask\n"
-     "\tcpsid  i\n"
-     : "=r" (primask)
-     :
-     : "memory");
-
-  return primask;
-#endif
 }
 
 /* Enable IRQs */
 
-static inline void up_irq_enable(void) always_inline_function;
-static inline void up_irq_enable(void)
+static always_inline_function void up_irq_enable(void)
 {
   /* In this case, we are always retaining or lowering the priority value */
 
@@ -423,37 +375,17 @@ static inline void up_irq_enable(void)
 
 /* Restore saved primask state */
 
-static inline void up_irq_restore(irqstate_t flags)
-always_inline_function noinstrument_function;
-static inline void up_irq_restore(irqstate_t flags)
+static always_inline_function
+void up_irq_restore(irqstate_t flags)
 {
-#ifdef CONFIG_ARMV8M_USEBASEPRI
   /* In this case, we are always retaining or lowering the priority value */
 
   setbasepri((uint32_t)flags);
-
-#else
-  /* If bit 0 of the primask is 0, then we need to restore
-   * interrupts.
-   */
-
-  __asm__ __volatile__
-    (
-      "\ttst    %0, #1\n"
-      "\tbne.n  1f\n"
-      "\tcpsie  i\n"
-      "1:\n"
-      :
-      : "r" (flags)
-      : "cc", "memory");
-
-#endif
 }
 
 /* Get/set IPSR */
 
-static inline uint32_t getipsr(void) always_inline_function;
-static inline uint32_t getipsr(void)
+static always_inline_function uint32_t getipsr(void)
 {
   uint32_t ipsr;
   __asm__ __volatile__
@@ -468,8 +400,7 @@ static inline uint32_t getipsr(void)
 
 /* Get/set FAULTMASK */
 
-static inline uint32_t getfaultmask(void) always_inline_function;
-static inline uint32_t getfaultmask(void)
+static always_inline_function uint32_t getfaultmask(void)
 {
   uint32_t faultmask;
   __asm__ __volatile__
@@ -482,8 +413,7 @@ static inline uint32_t getfaultmask(void)
   return faultmask;
 }
 
-static inline void setfaultmask(uint32_t faultmask) always_inline_function;
-static inline void setfaultmask(uint32_t faultmask)
+static always_inline_function void setfaultmask(uint32_t faultmask)
 {
   __asm__ __volatile__
     (
@@ -495,8 +425,7 @@ static inline void setfaultmask(uint32_t faultmask)
 
 /* Get/set CONTROL */
 
-static inline uint32_t getcontrol(void) always_inline_function;
-static inline uint32_t getcontrol(void)
+static always_inline_function uint32_t getcontrol(void)
 {
   uint32_t control;
   __asm__ __volatile__
@@ -509,8 +438,7 @@ static inline uint32_t getcontrol(void)
   return control;
 }
 
-static inline void setcontrol(uint32_t control) always_inline_function;
-static inline void setcontrol(uint32_t control)
+static always_inline_function void setcontrol(uint32_t control)
 {
   __asm__ __volatile__
     (
@@ -518,6 +446,20 @@ static inline void setcontrol(uint32_t control)
       :
       : "r" (control)
       : "memory");
+}
+
+static always_inline_function uint32_t getpsp(void)
+{
+  uint32_t psp;
+
+  __asm__ __volatile__
+    (
+     "\tmrs  %0, psp\n"
+     : "=r" (psp)
+     :
+     : "memory");
+
+  return psp;
 }
 
 /****************************************************************************
@@ -532,7 +474,7 @@ static inline void setcontrol(uint32_t control)
 int up_cpu_index(void) noinstrument_function;
 #endif /* CONFIG_ARCH_HAVE_MULTICPU */
 
-static inline_function uint32_t up_getsp(void)
+static always_inline_function uint32_t up_getsp(void)
 {
   uint32_t sp;
 
@@ -545,28 +487,13 @@ static inline_function uint32_t up_getsp(void)
   return sp;
 }
 
-noinstrument_function
-static inline_function uint32_t *up_current_regs(void)
+static always_inline_function uintptr_t up_getusrsp(void *regs)
 {
-#ifdef CONFIG_SMP
-  return (uint32_t *)g_current_regs[up_cpu_index()];
-#else
-  return (uint32_t *)g_current_regs[0];
-#endif
+  uint32_t *ptr = (uint32_t *)regs;
+  return ptr[REG_SP];
 }
 
-noinstrument_function
-static inline_function void up_set_current_regs(uint32_t *regs)
-{
-#ifdef CONFIG_SMP
-  g_current_regs[up_cpu_index()] = regs;
-#else
-  g_current_regs[0] = regs;
-#endif
-}
-
-noinstrument_function
-static inline_function bool up_interrupt_context(void)
+static always_inline_function bool up_interrupt_context(void)
 {
   return getipsr() != 0;
 }

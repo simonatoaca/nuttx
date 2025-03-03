@@ -1,6 +1,8 @@
 ############################################################################
 # arch/sim/src/Makefile
 #
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.  The
@@ -131,6 +133,13 @@ ifeq ($(CONFIG_HAVE_CXXINITIALIZE),y)
   # the place in the object list for linking. Namely, its constructor
   # should be the first one in the executable.
   HEADSRC = sim_macho_init.c
+
+  # sim_macho_init.c is not compatible with chained fixups.
+  # cf. https://github.com/apache/nuttx/issues/15208
+  ifeq ($(shell $(LD) -ld_classic -no_fixup_chains 2>&1 | grep "unknown option"),)
+    LDLINKFLAGS += -ld_classic -no_fixup_chains
+    LDFLAGS += -Wl,-ld_classic,-no_fixup_chains
+  endif
 endif
 else
   STDLIBS += -lrt
@@ -252,8 +261,12 @@ ifeq ($(CONFIG_SIM_LIBUSB),y)
 endif
 endif
 
-ifeq ($(CONFIG_RPMSG_VIRTIO),y)
+ifeq ($(CONFIG_RPMSG_VIRTIO_LITE),y)
   CSRCS += sim_rpmsg_virtio.c
+endif
+
+ifeq ($(CONFIG_RPMSG_PORT_UART),y)
+  CSRCS += sim_rpmsg_port_uart.c
 endif
 
 ifeq ($(CONFIG_RPTUN),y)

@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/armv8-m/arm_doirq.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -68,11 +70,15 @@ void exception_direct(void)
 uint32_t *arm_doirq(int irq, uint32_t *regs)
 {
   struct tcb_s **running_task = &g_running_tasks[this_cpu()];
-  FAR struct tcb_s *tcb;
+  struct tcb_s *tcb           = *running_task;
 
-  if (*running_task != NULL)
+  /* This judgment proves that (*running_task)->xcp.regs
+   * is invalid, and we can safely overwrite it.
+   */
+
+  if (!(NVIC_IRQ_SVCALL == irq && regs[REG_R0] == SYS_restore_context))
     {
-      (*running_task)->xcp.regs = regs;
+      tcb->xcp.regs = regs;
     }
 
   board_autoled_on(LED_INIRQ);
@@ -84,10 +90,6 @@ uint32_t *arm_doirq(int irq, uint32_t *regs)
 
   arm_ack_irq(irq);
 
-  /* Set current regs for crash dump */
-
-  up_set_current_regs(regs);
-
   if (irq == NVIC_IRQ_PENDSV)
     {
 #ifdef CONFIG_ARCH_HIPRI_INTERRUPT
@@ -95,6 +97,12 @@ uint32_t *arm_doirq(int irq, uint32_t *regs)
 
       irq_dispatch(irq, regs);
 #endif
+      if ((tcb->flags & TCB_FLAG_SIGDELIVER) != 0)
+        {
+          /* Pendsv able to access running tcb with no critical section */
+
+          up_schedule_sigaction(tcb);
+        }
 
       up_irq_save();
     }
@@ -102,12 +110,6 @@ uint32_t *arm_doirq(int irq, uint32_t *regs)
     {
       irq_dispatch(irq, regs);
     }
-
-  /* If a context switch occurred while processing the interrupt then
-   * current_regs may have change value.  If we return any value different
-   * from the input regs, then the lower level will know that a context
-   * switch occurred during interrupt processing.
-   */
 
   tcb = this_task();
 
@@ -125,10 +127,6 @@ uint32_t *arm_doirq(int irq, uint32_t *regs)
   regs = tcb->xcp.regs;
 #endif
 
-  /* Clear current regs */
-
-  up_set_current_regs(NULL);
-
   board_autoled_off(LED_INIRQ);
 
 #ifdef CONFIG_ARMV8M_TRUSTZONE_HYBRID
@@ -144,5 +142,10 @@ uint32_t *arm_doirq(int irq, uint32_t *regs)
     }
 #endif
 
+  /* (*running_task)->xcp.regs is about to become invalid
+   * and will be marked as NULL to avoid misusage.
+   */
+
+  (*running_task)->xcp.regs = NULL;
   return regs;
 }

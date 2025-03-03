@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/imx9/imx9_flexcan.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -47,6 +49,7 @@
 #include "hardware/imx9_ccm.h"
 #include "hardware/imx9_pinmux.h"
 
+#include <arch/barriers.h>
 #include <arch/board/board.h>
 
 #include <sys/time.h>
@@ -1278,7 +1281,7 @@ static void imx9_txtimeout_work(void *arg)
       /* Disable interrupt for this MB */
 
       modifyreg32(priv->base + IMX9_CAN_IMASK1_OFFSET, mb_bit, 0);
-      ARM64_DSB();
+      UP_DSB();
 
       if (priv->txmb[txmbi].deadline.tv_sec != 0
           && (now->tv_sec > priv->txmb[txmbi].deadline.tv_sec

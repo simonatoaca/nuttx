@@ -1,6 +1,8 @@
 ############################################################################
 # arch/xtensa/src/lx7/Toolchain.defs
 #
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more
 # contributor license agreements.  See the NOTICE file distributed with
 # this work for additional information regarding copyright ownership.  The
@@ -43,7 +45,7 @@ endif
 
 ARCHCPUFLAGS = -mlongcalls
 
-ifeq ($(CONFIG_MM_KASAN_ALL),y)
+ifeq ($(CONFIG_MM_KASAN_INSTRUMENT_ALL),y)
   ARCHOPTIMIZATION += -fsanitize=kernel-address
 endif
 
@@ -182,6 +184,8 @@ AR = $(CROSSDEV)ar rcs
 NM = $(CROSSDEV)nm
 OBJCOPY = $(CROSSDEV)objcopy
 OBJDUMP = $(CROSSDEV)objdump
+
+LDFLAGS += --print-memory-usage
 
 ifeq ($(CONFIG_ARCH_TOOLCHAIN_GNU),y)
   ifeq ($(CONFIG_ARCH_TOOLCHAIN_CLANG),)

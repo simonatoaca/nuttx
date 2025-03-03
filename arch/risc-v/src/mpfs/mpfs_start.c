@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/risc-v/src/mpfs/mpfs_start.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -35,6 +37,7 @@
 #include "mpfs_cache.h"
 #include "mpfs_mm_init.h"
 #include "mpfs_userspace.h"
+#include "hardware/mpfs_wdog.h"
 
 #include "riscv_internal.h"
 #include "riscv_percpu.h"
@@ -121,7 +124,7 @@ void __mpfs_start(uint64_t mhartid)
 
   /* Setup PLL if not already provided */
 
-#ifdef CONFIG_MPFS_BOOTLOADER
+#ifdef CONFIG_MPFS_CLKINIT
   mpfs_clockconfig();
 #endif
 
@@ -147,7 +150,15 @@ void __mpfs_start(uint64_t mhartid)
       /* Reset, but let the progress come out of the uart first */
 
       up_udelay(1000);
-      up_systemreset();
+
+      /* Reset by triggering WDOG */
+
+      putreg32(WDOG_FORCE_IMMEDIATE_RESET,
+               MPFS_WDOG0_LO_BASE + MPFS_WDOG_FORCE_OFFSET);
+
+      /* Wait for the reset */
+
+      for (; ; );
     }
 #endif
 

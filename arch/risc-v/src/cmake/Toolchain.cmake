@@ -1,6 +1,8 @@
 # ##############################################################################
 # arch/risc-v/src/cmake/Toolchain.cmake
 #
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements.  See the NOTICE file distributed with this work for
 # additional information regarding copyright ownership.  The ASF licenses this
@@ -110,6 +112,14 @@ endif()
 
 set(NO_LTO "-fno-lto")
 
+# override the responsible file flag
+
+if(CMAKE_GENERATOR MATCHES "Ninja")
+  set(CMAKE_C_RESPONSE_FILE_FLAG "$DEFINES $INCLUDES $FLAGS @")
+  set(CMAKE_CXX_RESPONSE_FILE_FLAG "$DEFINES $INCLUDES $FLAGS @")
+  set(CMAKE_ASM_RESPONSE_FILE_FLAG "$DEFINES $INCLUDES $FLAGS @")
+endif()
+
 # override the ARCHIVE command
 set(CMAKE_ARCHIVE_COMMAND "<CMAKE_AR> rcs <TARGET> <LINK_FLAGS> <OBJECTS>")
 set(CMAKE_RANLIB_COMMAND "<CMAKE_RANLIB> <TARGET>")
@@ -160,7 +170,7 @@ if(${CONFIG_STACK_USAGE_WARNING})
 endif()
 
 if(CONFIG_COVERAGE_ALL)
-  add_compile_options(-fprofile-generate -ftest-coverage)
+  add_compile_options(-fprofile-arcs -ftest-coverage -fno-inline)
 endif()
 
 add_compile_options(
@@ -333,21 +343,19 @@ if(CONFIG_RISCV_TOOLCHAIN STREQUAL GNU_RVG)
   # These models can't cover all implementation of RISCV, but it's enough for
   # most cases.
 
-  set(LLVM_CPUFLAGS)
-
   if(CONFIG_ARCH_RV32)
-    if(${ARCHCPUEXTFLAGS} STREQUAL imc)
-      list(APPEND LLVM_CPUFLAGS -mcpu=sifive-e20)
-    elseif(${ARCHCPUEXTFLAGS} STREQUAL imac)
-      list(APPEND LLVM_CPUFLAGS -mcpu=sifive-e31)
-    elseif(${ARCHCPUEXTFLAGS} STREQUAL imafc)
-      list(APPEND LLVM_CPUFLAGS -mcpu=sifive-e76)
+    if(${ARCHCPUEXTFLAGS} MATCHES "^imc")
+      set(LLVM_CPUTYPE "sifive-e20")
+    elseif(${ARCHCPUEXTFLAGS} MATCHES "^imac")
+      set(LLVM_CPUTYPE "sifive-e31")
+    elseif(${ARCHCPUEXTFLAGS} MATCHES "^imafc")
+      set(LLVM_CPUTYPE "sifive-e76")
     endif()
   else()
-    if(${ARCHCPUEXTFLAGS} STREQUAL imac)
-      list(APPEND LLVM_CPUFLAGS -mcpu=sifive-s51)
-    elseif(${ARCHCPUEXTFLAGS} STREQUAL imafdc)
-      list(APPEND LLVM_CPUFLAGS -mcpu=sifive-u54)
+    if(${ARCHCPUEXTFLAGS} MATCHES "^imac")
+      set(LLVM_CPUTYPE "sifive-s51")
+    elseif(${ARCHCPUEXTFLAGS} MATCHES "^imafdc")
+      set(LLVM_CPUTYPE "sifive-u54")
     endif()
   endif()
 
@@ -357,7 +365,7 @@ if(CONFIG_RISCV_TOOLCHAIN STREQUAL GNU_RVG)
 
 endif()
 
-if(CONFIG_MM_KASAN_ALL)
+if(CONFIG_MM_KASAN_INSTRUMENT_ALL)
   add_compile_options(-fsanitize=kernel-address)
 endif()
 

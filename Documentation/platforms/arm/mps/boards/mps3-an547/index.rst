@@ -40,7 +40,7 @@ Configuring and Running (Single Core)
      make -j20
      mkdir -p pic
      arm-none-eabi-strip --remove-section=.rel.text --remove-section=.comment --strip-unneeded nuttx -o pic/boot
-     genromfs -a -f 128 ../romfs.img -d pic
+     genromfs -a 128 -f ../romfs.img -d pic
      make distclean -j20
      ./tools/configure.sh mps3-an547:bl
      make -j20
@@ -48,7 +48,23 @@ Configuring and Running (Single Core)
      -kernel nuttx.bin -gdb tcp::1127 \
      -device loader,file=../romfs.img,addr=0x60000000
      bl> boot /pic/boot
+     modlib_init...
+     modlib_load...
+     modlib_bind...
+     add-symbol-file ap.elf -s .text 0x60001080 -s .data 0x21000000
+
      ap> ostest
+
+Precautions
+===========
+
+In the new version of QEMU (9.20), the UART RX interrupt and TX interrupt have been swapped.
+Adjustments need to be made using menuconfig::
+
+    CONFIG_CMSDK_UART0_TX_IRQ=50
+    CONFIG_CMSDK_UART0_RX_IRQ=49
+
+For details, see `fix RX/TX interrupts order <https://github.com/qemu/qemu/commit/5a558be93ad628e5bed6e0ee062870f49251725c>`_
 
 Debugging with QEMU
 ===================

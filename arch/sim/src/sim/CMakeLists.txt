@@ -1,6 +1,8 @@
 # ##############################################################################
 # arch/sim/src/sim/CMakeLists.txt
 #
+# SPDX-License-Identifier: Apache-2.0
+#
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements.  See the NOTICE file distributed with this work for
 # additional information regarding copyright ownership.  The ASF licenses this
@@ -117,8 +119,12 @@ if(CONFIG_LIBM_TOOLCHAIN)
   list(APPEND STDLIBS m)
 endif()
 
-if(CONFIG_RPMSG_VIRTIO)
-  list(APPEND SRCS sim_rpmsg_vritio.c)
+if(CONFIG_RPMSG_VIRTIO_LITE)
+  list(APPEND SRCS sim_rpmsg_virtio.c)
+endif()
+
+if(CONFIG_RPMSG_PORT_UART)
+  list(APPEND SRCS sim_rpmsg_port_uart.c)
 endif()
 
 if(CONFIG_RPTUN)

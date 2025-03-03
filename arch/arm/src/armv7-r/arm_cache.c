@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/armv7-r/arm_cache.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -26,9 +28,9 @@
 #include <nuttx/cache.h>
 #include <nuttx/irq.h>
 #include <sys/param.h>
+#include <arch/barriers.h>
 
 #include "cp15_cacheops.h"
-#include "barriers.h"
 #include "l2cc.h"
 
 /****************************************************************************

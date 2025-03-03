@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/nrf53/nrf53_qspi.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -59,10 +61,6 @@
 #define QSPI_SECTOR_ERASE 0x20
 #define QSPI_BLOCK_ERASE  0xd8
 #define QSPI_ALL_ERASE    0xc7
-
-/* QSPI memory synchronization */
-
-#define MEMORY_SYNC()     do { ARM_DSB(); ARM_ISB(); } while (0)
 
 /****************************************************************************
  * Private Types

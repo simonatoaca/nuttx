@@ -648,7 +648,7 @@ static int partition_get_offset(const char *label, size_t size)
   int partion_offset;
   const struct partition_info_priv_s *info;
   DEBUGASSERT(label != NULL);
-  struct mtd_dev_s *mtd = esp32s3_spiflash_mtd();
+  struct mtd_dev_s *mtd = esp32s3_spiflash_encrypt_mtd();
   if (!mtd)
     {
       ferr("ERROR: Failed to get SPI flash MTD\n");
@@ -769,6 +769,8 @@ int esp32s3_partition_init(void)
   encrypt = esp32s3_flash_encryption_enabled();
   for (i = 0; i < num; i++)
     {
+      char *name;
+
       if (info->magic != PARTITION_MAGIC)
         {
           break;
@@ -842,8 +844,8 @@ int esp32s3_partition_init(void)
       mtd_priv->mtd.ioctl  = esp32s3_part_ioctl;
       mtd_priv->mtd.read   = esp32s3_part_read;
       mtd_priv->mtd.write  = esp32s3_part_write;
-      mtd_priv->mtd.name   = strdup(label);
-      if (!mtd_priv->mtd.name)
+      mtd_priv->mtd.name   = name = strdup(label);
+      if (!name)
         {
           ferr("ERROR: Failed to allocate MTD name\n");
           kmm_free(mtd_priv);
@@ -857,7 +859,7 @@ int esp32s3_partition_init(void)
       if (!mtd_priv->part_mtd)
         {
           ferr("ERROR: Failed to create MTD partition\n");
-          lib_free(mtd_priv->mtd.name);
+          lib_free(name);
           kmm_free(mtd_priv);
           ret = -ENOSPC;
           goto errout_with_mtd;
@@ -867,7 +869,7 @@ int esp32s3_partition_init(void)
       if (ret < 0)
         {
           ferr("ERROR: Failed to register MTD @ %s\n", path);
-          lib_free(mtd_priv->mtd.name);
+          lib_free(name);
           kmm_free(mtd_priv);
           goto errout_with_mtd;
         }
@@ -915,6 +917,54 @@ int esp32s3_partition_read(const char *label, size_t offset, void *buf,
     }
 
   partion_offset = partition_get_offset(label, sizeof(label));
+  if (partion_offset < 0)
+    {
+      ferr("ERROR: Failed to get partition: %s offset\n", label);
+      return partion_offset;
+    }
+
+  ret = MTD_READ(mtd, partion_offset + offset,
+                 size, (uint8_t *)buf);
+  if (ret != size)
+    {
+      ferr("ERROR: Failed to get read data from MTD\n");
+      return -EIO;
+    }
+
+  return OK;
+}
+
+/****************************************************************************
+ * Name: esp32s3_partition_read_decrypt
+ *
+ * Description:
+ *   Read data from SPI Flash at designated address (with decryption)
+ *
+ * Input Parameters:
+ *   label  - Partition label
+ *   offset - Offset in SPI Flash
+ *   buf    - Data buffer pointer
+ *   size   - Data number
+ *
+ * Returned Value:
+ *   0 if success or a negative value if fail.
+ *
+ ****************************************************************************/
+
+int esp32s3_partition_read_decrypt(const char *label, size_t offset,
+                                   void *buf, size_t size)
+{
+  int ret;
+  int partion_offset;
+  DEBUGASSERT(label != NULL && buf != NULL);
+  struct mtd_dev_s *mtd = esp32s3_spiflash_encrypt_mtd();
+  if (!mtd)
+    {
+      ferr("ERROR: Failed to get SPI flash MTD\n");
+      return -ENOSYS;
+    }
+
+  partion_offset = partition_get_offset(label, strlen(label));
   if (partion_offset < 0)
     {
       ferr("ERROR: Failed to get partition: %s offset\n", label);

@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32h5/stm32.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -43,4 +45,7 @@
 #include "stm32_uart.h"
 #include "stm32_lowputc.h"
 #include "stm32_i2c.h"
+#include "stm32_adc.h"
+#include "stm32_usbfs.h"
+
 #endif /* __ARCH_ARM_SRC_STM32H5_STM32_H */

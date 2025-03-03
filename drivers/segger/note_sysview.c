@@ -112,7 +112,7 @@ static const struct note_driver_ops_s g_note_sysview_ops =
 #  endif
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_PREEMPTION
-  NULL,                       /* premption */
+  NULL,                       /* preemption */
 #endif
 #ifdef CONFIG_SCHED_INSTRUMENTATION_CSECTION
   NULL,                       /* csection */
@@ -157,6 +157,12 @@ static struct note_sysview_driver_s g_note_sysview_driver =
     &g_note_sysview_ops
   }
 };
+
+/****************************************************************************
+ * Public Data
+ ****************************************************************************/
+
+spinlock_t g_segger_lock = SP_UNLOCKED;
 
 /****************************************************************************
  * Private Functions

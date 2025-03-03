@@ -35,6 +35,14 @@ config ARCH_BOARD_ARDUINO_DUE
 		This options selects the Arduino DUE board featuring the Atmel
 		ATSAM3X8E MCU running at 84 MHz.
 
+config ARCH_BOARD_ARDUINO_R4_MINIMA
+	bool "Arduino R4 Minima"
+	depends on ARCH_CHIP_RA4
+	select ARCH_HAVE_LEDS
+	---help---
+		This options selects the Arduino R4 Minima board featuring the Renesas
+		R7FA4M1 MCU running at 48 MHz.
+
 config ARCH_BOARD_ARDUINO_M0
 	bool "Arduino M0"
 	depends on ARCH_CHIP_SAMD21G18A
@@ -423,7 +431,7 @@ config ARCH_BOARD_FRANZININHO_WIFI
 
 config ARCH_BOARD_ESP32S3_DEVKIT
 	bool "Espressif ESP32-S3 DevKit"
-	depends on ARCH_CHIP_ESP32S3WROOM1N4 || ARCH_CHIP_ESP32S3MINI1N8 || ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM
+	depends on ARCH_CHIP_ESP32S3WROOM1N4 || ARCH_CHIP_ESP32S3MINI1N8 || ARCH_CHIP_ESP32S3WROOM1N16R8 || ARCH_CHIP_ESP32S3WROOM2N16R8V || ARCH_CHIP_ESP32S3WROOM2N32R8V || ARCH_CHIP_ESP32S3CUSTOM || ARCH_CHIP_ESP32S3WROOM1N8R8
 	select ARCH_HAVE_LEDS
 	select ARCH_HAVE_BUTTONS
 	select ARCH_HAVE_IRQBUTTONS if ESP32S3_GPIO_IRQ
@@ -788,6 +796,16 @@ config ARCH_BOARD_IMXRT1170_EVK
 	---help---
 		This is the board configuration for the port of NuttX to the NXP i.MXRT
 		evaluation kit, MIMXRT1170-EVK.  This board features the MIMXRT1176DVMAA MCU.
+
+config ARCH_BOARD_IMX95_EVK
+	bool "NXP i.MX 95 EVK"
+	depends on ARCH_CHIP_IMX9_CORTEX_M
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This is the board configuration for the port of NuttX to the NXP i.MXRT
+		evaluation kit, IMX95-EVK.  This board features the IMX95 MCU.
 
 config ARCH_BOARD_LC823450_XGEVK
 	bool "ON Semiconductor LC823450-XGEVK development board"
@@ -1219,6 +1237,13 @@ config ARCH_BOARD_NRF52840_DONGLE
 	select ARCH_HAVE_BUTTONS
 	---help---
 		This option selects the Nordic nRF52840 Dongle (PCA10059)
+
+config ARCH_BOARD_XIAO_NRF52840
+	bool "Seeed Xiao nRF52840"
+	depends on ARCH_CHIP_NRF52
+	select ARCH_HAVE_LEDS
+	---help---
+		This option selects the Seeed Xiao nRF52840 Board
 
 config ARCH_BOARD_ARDUINO_NANO_33BLE
 	bool "Arduino Nano 33 BLE Sense based on Nordic nRF52840"
@@ -1922,6 +1947,12 @@ config ARCH_BOARD_RASPBERRYPI_PICO_W
 	---help---
 		This is a port to the Raspberry Pi Pico W board.
 
+config ARCH_BOARD_RASPBERRYPI_4B
+	bool "Raspberry Pi Model 4B"
+	depends on ARCH_CHIP_BCM2711
+	---help---
+		This is a port to the Raspberry Pi Model 4B.
+
 config ARCH_BOARD_PIMORONI_TINY2040
 	bool "Pimoroni Tiny2040 board"
 	depends on ARCH_CHIP_RP2040
@@ -1958,6 +1989,23 @@ config ARCH_BOARD_ADAFRUIT_QT_PY_RP2040
 	---help---
 		This is a port to the Adafruit QT Py RP2040 board.
 		Support is derived from Raspberry Pi Pico support.
+
+config ARCH_BOARD_RASPBERRYPI_PICO_2
+	bool "Raspberry Pi Pico 2 board (not Pico, not W)"
+	depends on ARCH_CHIP_RP23XX
+	select ARCH_HAVE_LEDS
+	---help---
+		This is a port to the Raspberry Pi Pico 2 board.
+
+config ARCH_BOARD_PIMORONI_PICO_2_PLUS
+	bool "Pimoroni Pico 2 Plus"
+	depends on ARCH_CHIP_RP23XX
+	select ARCH_HAVE_LEDS
+	select ARCH_HAVE_BUTTONS
+	select ARCH_HAVE_IRQBUTTONS
+	select RP23XX_RP2350B
+	---help---
+		This is a port to the Pimoroni Pico 2 Plus board.
 
 config ARCH_BOARD_WAVESHARE_RP2040_LCD_1_28
 	bool "Waveshare RP2040 LCD 1.28 board"
@@ -2171,6 +2219,7 @@ config ARCH_BOARD_SABRE_6QUAD
 
 config ARCH_BOARD_TC397
 	bool "Infineon's AURIX TC397 board: KIT_A2G_TC397_5V_TFT"
+	depends on ARCH_CHIP_TC397
 	---help---
 		This options selects support for NuttX on the Infineon's AURIX board
 		board featuring the TC397 6Quad CPU.
@@ -2190,6 +2239,14 @@ config ARCH_BOARD_QEMU_ARMV8A
 	---help---
 		This options selects support for NuttX on the QEMU ARMv8a + virt
 		board featuring the qemu ARMv8a CPUs.
+
+config ARCH_BOARD_QEMU_ARMV7R
+	bool "Qemu ARMv7r CPUs board"
+	depends on ARCH_CHIP_QEMU_ARM
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This selects support for NuttX on the QEMU ARMv7r + virt
+		board featuring the qemu ARMv7r CPUs.
 
 config ARCH_BOARD_PINEPHONE
 	bool "PINE64 PinePhone"
@@ -3169,6 +3226,14 @@ config ARCH_BOARD_AT32F437_MINI
 	---help---
 		AT32F437-MINI board based on the Artery AT32F437VMT7 MCU.
 
+config ARCH_BOARD_FRDM_MCXN236
+	bool "NXP MCXN236 CPU EVK board"
+	depends on ARCH_CHIP_N236
+	select ARCH_HAVE_IRQBUTTONS
+	---help---
+		This options selects support for NuttX on the NXP MCXN236 CPU EVK
+		board with ARM Cortex-M33.
+
 config ARCH_BOARD_CUSTOM
 	bool "Custom development board"
 	---help---
@@ -3240,6 +3305,7 @@ config ARCH_BOARD
 	default "amber"                     if ARCH_BOARD_AMBER
 	default "arduino-mega2560"          if ARCH_BOARD_ARDUINO_MEGA2560
 	default "arduino-due"               if ARCH_BOARD_ARDUINO_DUE
+	default "arduino-r4-minima"         if ARCH_BOARD_ARDUINO_R4_MINIMA
 	default "arduino-m0"                if ARCH_BOARD_ARDUINO_M0
 	default "arduino-nano-33ble"        if ARCH_BOARD_ARDUINO_NANO_33BLE
 	default "arduino-nano-33ble-rev2"   if ARCH_BOARD_ARDUINO_NANO_33BLE_REV2
@@ -3313,6 +3379,7 @@ config ARCH_BOARD
 	default "imxrt1060-evk"             if ARCH_BOARD_IMXRT1060_EVK
 	default "imxrt1064-evk"             if ARCH_BOARD_IMXRT1064_EVK
 	default "imxrt1170-evk"             if ARCH_BOARD_IMXRT1170_EVK
+	default "imx95-evk"                 if ARCH_BOARD_IMX95_EVK
 	default "kwikstik-k40"              if ARCH_BOARD_KWIKSTIK_K40
 	default "launchxl-cc1310"           if ARCH_BOARD_LAUNCHXL_CC1310
 	default "launchxl-cc1312r1"         if ARCH_BOARD_LAUNCHXL_CC1312R1
@@ -3356,6 +3423,7 @@ config ARCH_BOARD
 	default "nrf52832-dk"               if ARCH_BOARD_NRF52832_DK
 	default "nrf52840-dk"               if ARCH_BOARD_NRF52840_DK
 	default "nrf52840-dongle"           if ARCH_BOARD_NRF52840_DONGLE
+	default "xiao-nrf52840"             if ARCH_BOARD_XIAO_NRF52840
 	default "thingy52"                  if ARCH_BOARD_THINGY52
 	default "nrf5340-dk"                if ARCH_BOARD_NRF5340_DK
 	default "nrf5340-audio-dk"          if ARCH_BOARD_NRF5340_AUDIO_DK
@@ -3376,7 +3444,8 @@ config ARCH_BOARD
 	default "nucleo-f303re"             if ARCH_BOARD_NUCLEO_F303RE
 	default "nucleo-f303ze"             if ARCH_BOARD_NUCLEO_F303ZE
 	default "nucleo-f334r8"             if ARCH_BOARD_NUCLEO_F334R8
-	default "nucleo-f4x1re"             if ARCH_BOARD_NUCLEO_F401RE || ARCH_BOARD_NUCLEO_F411RE
+	default "nucleo-f401re"             if ARCH_BOARD_NUCLEO_F401RE
+	default "nucleo-f411re"             if ARCH_BOARD_NUCLEO_F411RE
 	default "stm32f401rc-rs485"         if ARCH_BOARD_STM32F401RC_RS485
 	default "nucleo-f429zi"             if ARCH_BOARD_NUCLEO_F429ZI
 	default "nucleo-f446re"             if ARCH_BOARD_NUCLEO_F446RE
@@ -3429,6 +3498,7 @@ config ARCH_BOARD
 	default "qemu-i486"                 if ARCH_BOARD_QEMU_I486
 	default "qemu-intel64"              if ARCH_BOARD_INTEL64_QEMU
 	default "raspberrypi-pico"          if ARCH_BOARD_RASPBERRYPI_PICO
+	default "raspberrypi-4b"            if ARCH_BOARD_RASPBERRYPI_4B
 	default "raspberrypi-pico-w"        if ARCH_BOARD_RASPBERRYPI_PICO_W
 	default "pimoroni-tiny2040"         if ARCH_BOARD_PIMORONI_TINY2040
 	default "adafruit-feather-rp2040"   if ARCH_BOARD_ADAFRUIT_FEATHER_RP2040
@@ -3436,7 +3506,10 @@ config ARCH_BOARD
 	default "adafruit-kb2040"           if ARCH_BOARD_ADAFRUIT_KB2040
 	default "adafruit-qt-py-rp2040"     if ARCH_BOARD_ADAFRUIT_QT_PY_RP2040
 	default "waveshare-rp2040-lcd-1.28" if ARCH_BOARD_WAVESHARE_RP2040_LCD_1_28
+	default "raspberrypi-pico-2"        if ARCH_BOARD_RASPBERRYPI_PICO_2
+	default "pimoroni-pico-2-plus"      if ARCH_BOARD_PIMORONI_PICO_2_PLUS
 	default "w5500-evb-pico"            if ARCH_BOARD_W5500_EVB_PICO
+	default "waveshare-rp2040-zero"     if ARCH_BOARD_WAVESHARE_RP2040_ZERO
 	default "rx65n"                     if ARCH_BOARD_RX65N
 	default "rx65n-rsk1mb"              if ARCH_BOARD_RX65N_RSK1MB
 	default "rx65n-rsk2mb"              if ARCH_BOARD_RX65N_RSK2MB
@@ -3461,6 +3534,7 @@ config ARCH_BOARD
 	default "sabre-6quad"               if ARCH_BOARD_SABRE_6QUAD
 	default "tc397"                     if ARCH_BOARD_TC397
 	default "qemu-armv7a"               if ARCH_BOARD_QEMU_ARMV7A
+	default "qemu-armv7r"               if ARCH_BOARD_QEMU_ARMV7R
 	default "qemu-armv8a"               if ARCH_BOARD_QEMU_ARMV8A
 	default "pinephone"                 if ARCH_BOARD_PINEPHONE
 	default "pinephonepro"              if ARCH_BOARD_PINEPHONE_PRO
@@ -3570,6 +3644,7 @@ config ARCH_BOARD
 	default "hpm6750evk2"               if ARCH_BOARD_HPM6750EVK2
 	default "at32f437-mini"             if ARCH_BOARD_AT32F437_MINI
 	default "csk6011a-nano"             if ARCH_BOARD_CSK6011A_NANO
+	default "frdm-mcxn236"              if ARCH_BOARD_FRDM_MCXN236
 
 comment "Common Board Options"
 
@@ -3719,6 +3794,9 @@ endif
 if ARCH_BOARD_IMXRT1170_EVK
 source "boards/arm/imxrt/imxrt1170-evk/Kconfig"
 endif
+if ARCH_BOARD_IMX95_EVK
+source "boards/arm/imx9/imx95-evk/Kconfig"
+endif
 if ARCH_BOARD_TEENSY_4X
 source "boards/arm/imxrt/teensy-4.x/Kconfig"
 endif
@@ -3863,6 +3941,9 @@ endif
 if ARCH_BOARD_NRF52840_DK
 source "boards/arm/nrf52/nrf52840-dk/Kconfig"
 endif
+if ARCH_BOARD_XIAO_NRF52840
+source "boards/arm/nrf52/xiao-nrf52840/Kconfig"
+endif
 if ARCH_BOARD_THINGY52
 source "boards/arm/nrf52/thingy52/Kconfig"
 endif
@@ -3877,6 +3958,9 @@ source "boards/arm/nuc1xx/nutiny-nuc120/Kconfig"
 endif
 if ARCH_BOARD_RASPBERRYPI_PICO
 source "boards/arm/rp2040/raspberrypi-pico/Kconfig"
+endif
+if ARCH_BOARD_RASPBERRYPI_4B
+source "boards/arm64/bcm2711/raspberrypi-4b/Kconfig"
 endif
 if ARCH_BOARD_RASPBERRYPI_PICO_W
 source "boards/arm/rp2040/raspberrypi-pico-w/Kconfig"
@@ -3896,8 +3980,20 @@ endif
 if ARCH_BOARD_ADAFRUIT_QT_PY_RP2040
 source "boards/arm/rp2040/adafruit-qt-py-rp2040/Kconfig"
 endif
+if ARCH_BOARD_WAVESHARE_RP2040_ZERO
+source "boards/arm/rp2040/waveshare-rp2040-zero/Kconfig"
+endif
+if ARCH_BOARD_RASPBERRYPI_PICO_2
+source "boards/arm/rp23xx/raspberrypi-pico-2/Kconfig"
+endif
+if ARCH_BOARD_PIMORONI_PICO_2_PLUS
+source "boards/arm/rp23xx/pimoroni-pico-2-plus/Kconfig"
+endif
 if ARCH_BOARD_ARDUINO_DUE
 source "boards/arm/sam34/arduino-due/Kconfig"
+endif
+if ARCH_BOARD_ARDUINO_R4_MINIMA
+source "boards/arm/ra4/arduino-r4-minima/Kconfig"
 endif
 if ARCH_BOARD_ARDUINO_M0
 source "boards/arm/samd2l2/arduino-m0/Kconfig"
@@ -4163,8 +4259,11 @@ endif
 if ARCH_BOARD_NUCLEO_F446RE
 source "boards/arm/stm32/nucleo-f446re/Kconfig"
 endif
-if ARCH_BOARD_NUCLEO_F401RE || ARCH_BOARD_NUCLEO_F411RE
-source "boards/arm/stm32/nucleo-f4x1re/Kconfig"
+if ARCH_BOARD_NUCLEO_F401RE
+source "boards/arm/stm32/nucleo-f401re/Kconfig"
+endif
+if ARCH_BOARD_NUCLEO_F411RE
+source "boards/arm/stm32/nucleo-f411re/Kconfig"
 endif
 if ARCH_BOARD_STM32F401RC_RS485
 source "boards/arm/stm32/stm32f401rc-rs485/Kconfig"
@@ -4580,6 +4679,9 @@ endif
 if ARCH_BOARD_CSK6011A_NANO
 source "boards/arm/csk6/csk6011a-nano/Kconfig"
 endif
+if ARCH_BOARD_FRDM_MCXN236
+source "boards/arm/mcx-nxxx/frdm-mcxn236/Kconfig"
+endif
 
 comment "Board-Common Options"
 
@@ -4626,6 +4728,9 @@ endif
 if ARCH_CHIP_RP2040
 source "boards/arm/rp2040/common/Kconfig"
 endif
+if ARCH_CHIP_RP23XX
+source "boards/arm/rp23xx/common/Kconfig"
+endif
 if ARCH_CHIP_NRF52
 source "boards/arm/nrf52/common/Kconfig"
 endif
@@ -4637,9 +4742,9 @@ source "boards/arm/nrf91/common/Kconfig"
 endif
 endif
 
-config BOARD_CRASHDUMP
-	bool "Enable Board level logging of crash dumps"
-	default n
+choice
+	prompt "BOARD crashdump method"
+	default BOARD_CRASHDUMP_NONE
 	---help---
 		If selected up_assert will call out to board_crashdump, in the case
 		of an assertion failure, prior to calling exit. Or in the
@@ -4656,28 +4761,43 @@ config BOARD_CRASHDUMP
 
 config BOARD_COREDUMP_SYSLOG
 	bool "Enable Core dump to syslog"
-	default n
 	depends on COREDUMP
 	---help---
 		Enable put coredump to syslog when crash.
 
 config BOARD_COREDUMP_BLKDEV
 	bool "Enable Core Dump to block device"
-	default n
 	depends on COREDUMP
 	---help---
-		Enable save coredump at block device when crash.
+		Enable save coredump to block device when crash.
 
-config BOARD_COREDUMP_BLKDEV_PATH
-	string "Save Core Dump block device PATH"
-	depends on BOARD_COREDUMP_BLKDEV
+config BOARD_COREDUMP_MTDDEV
+	bool "Enable Core Dump to mtd device"
+	depends on COREDUMP
 	---help---
-		Save coredump file block device path.
+		Enable save coredump to mtd device when crash.
+
+config BOARD_CRASHDUMP_CUSTOM
+	bool "Enable Core Dump with custom method"
+	---help---
+		Enable save coredump with custom method. only work with
+		board_crashdump api.
+
+config BOARD_CRASHDUMP_NONE
+	bool "No Board level crash dump"
+
+endchoice # BOARD crashdump method
+
+config BOARD_COREDUMP_DEVPATH
+	string "Save Core Dump data with device PATH"
+	depends on BOARD_COREDUMP_BLKDEV || BOARD_COREDUMP_MTDDEV
+	---help---
+		Save coredump file into block/mtd device path.
 
 config BOARD_COREDUMP_FULL
 	bool "Core Dump all thread registers and stacks"
 	default y
-	depends on BOARD_COREDUMP_SYSLOG || BOARD_COREDUMP_BLKDEV
+	depends on !BOARD_CRASHDUMP_NONE
 	---help---
 		Enable to support for the dump all task registers and stacks.
 
@@ -4685,7 +4805,7 @@ config BOARD_COREDUMP_COMPRESSION
 	bool "Enable Core Dump compression"
 	default y
 	select LIBC_LZF
-	depends on BOARD_COREDUMP_SYSLOG || BOARD_COREDUMP_BLKDEV
+	depends on !BOARD_CRASHDUMP_NONE
 	---help---
 		Enable LZF compression algorithm for core dump content
 

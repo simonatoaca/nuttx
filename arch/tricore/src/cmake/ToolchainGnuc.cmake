@@ -1,5 +1,7 @@
 # ##############################################################################
-# arch/tricore/src/cmake/Toolchain.cmake
+# arch/tricore/src/cmake/ToolchainGnuc.cmake
+#
+# SPDX-License-Identifier: Apache-2.0
 #
 # Licensed to the Apache Software Foundation (ASF) under one or more contributor
 # license agreements.  See the NOTICE file distributed with this work for
@@ -85,7 +87,7 @@ if(CONFIG_STACK_CANARIES)
 endif()
 
 if(CONFIG_COVERAGE_ALL)
-  add_compile_options(-fprofile-generate -ftest-coverage)
+  add_compile_options(-fprofile-arcs -ftest-coverage -fno-inline)
 endif()
 
 # Optimization of unused sections

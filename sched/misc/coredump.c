@@ -32,6 +32,7 @@
 
 #include <nuttx/coredump.h>
 #include <nuttx/elf.h>
+#include <nuttx/nuttx.h>
 #include <nuttx/sched.h>
 
 #include "sched/sched.h"
@@ -47,10 +48,18 @@
 #  define ELF_PAGESIZE    1024
 #endif
 
+#if defined(CONFIG_BOARD_COREDUMP_BLKDEV) || \
+    defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+#  define CONFIG_BOARD_COREDUMP_DEV
+#endif
+
 #define PROGRAM_ALIGNMENT 64
 
-#define ROUNDUP(x, y)     ((x + (y - 1)) / (y)) * (y)
-#define ROUNDDOWN(x ,y)   (((x) / (y)) * (y))
+/* Architecture can overwrite the default XCPTCONTEXT alignment */
+
+#ifndef XCPTCONTEXT_ALIGN
+#  define XCPTCONTEXT_ALIGN 16
+#endif
 
 /****************************************************************************
  * Private Types
@@ -71,7 +80,8 @@ struct elf_dumpinfo_s
  * Private Data
  ****************************************************************************/
 
-static uint8_t g_running_regs[XCPTCONTEXT_SIZE] aligned_data(16);
+static uint8_t g_running_regs[XCPTCONTEXT_SIZE]
+               aligned_data(XCPTCONTEXT_ALIGN);
 
 #ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
 static struct lib_lzfoutstream_s  g_lzfstream;
@@ -87,8 +97,9 @@ static struct lib_hexdumpstream_s g_hexstream;
 #endif
 
 #ifdef CONFIG_BOARD_COREDUMP_BLKDEV
-static struct lib_blkoutstream_s  g_blockstream;
-static unsigned char *g_blockinfo;
+static struct lib_blkoutstream_s g_devstream;
+#elif defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+static struct lib_mtdoutstream_s g_devstream;
 #endif
 
 #ifdef CONFIG_BOARD_MEMORY_RANGE
@@ -133,7 +144,7 @@ static int elf_emit(FAR struct elf_dumpinfo_s *cinfo,
 {
   FAR const uint8_t *ptr = buf;
   size_t total = len;
-  int ret;
+  int ret = 0;
 
   while (total > 0)
     {
@@ -160,11 +171,11 @@ static int elf_emit(FAR struct elf_dumpinfo_s *cinfo,
 
 static int elf_emit_align(FAR struct elf_dumpinfo_s *cinfo)
 {
-  off_t align = ROUNDUP(cinfo->stream->nput,
-                        ELF_PAGESIZE) - cinfo->stream->nput;
+  off_t align = ALIGN_UP(cinfo->stream->nput,
+                         ELF_PAGESIZE) - cinfo->stream->nput;
   unsigned char null[256];
   off_t total = align;
-  off_t ret;
+  off_t ret = 0;
 
   memset(null, 0, sizeof(null));
 
@@ -252,11 +263,17 @@ static int elf_get_note_size(int stksegs)
 {
   int total;
 
-  total  = stksegs * (sizeof(Elf_Nhdr) + ROUNDUP(CONFIG_TASK_NAME_SIZE, 8) +
-                     sizeof(elf_prstatus_t));
-  total += stksegs * (sizeof(Elf_Nhdr) + ROUNDUP(CONFIG_TASK_NAME_SIZE, 8) +
-                     sizeof(elf_prpsinfo_t));
+  total  = stksegs * (sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+                      sizeof(elf_prstatus_t));
+  total += stksegs * (sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+                      sizeof(elf_prpsinfo_t));
   return total;
+}
+
+static int elf_get_info_note_size(void)
+{
+  return sizeof(Elf_Nhdr) + COREDUMP_INFONAME_SIZE +
+         sizeof(struct coredump_info_s);
 }
 
 /****************************************************************************
@@ -270,7 +287,7 @@ static int elf_get_note_size(int stksegs)
 static void elf_emit_tcb_note(FAR struct elf_dumpinfo_s *cinfo,
                               FAR struct tcb_s *tcb)
 {
-  char name[ROUNDUP(CONFIG_TASK_NAME_SIZE, 8)];
+  char name[COREDUMP_INFONAME_SIZE];
   elf_prstatus_t status;
   elf_prpsinfo_t info;
   FAR uintptr_t *regs;
@@ -324,7 +341,7 @@ static void elf_emit_tcb_note(FAR struct elf_dumpinfo_s *cinfo,
 
   if (regs != NULL)
     {
-      for (i = 0; i < nitems(status.pr_regs); i++)
+      for (i = 0; i < MIN(nitems(status.pr_regs), g_tcbinfo.regs_num); i++)
         {
           if (g_tcbinfo.reg_off.p[i] != UINT16_MAX)
             {
@@ -408,8 +425,8 @@ static void elf_emit_tcb_stack(FAR struct elf_dumpinfo_s *cinfo,
             (tcb->stack_base_ptr - tcb->stack_alloc_ptr);
     }
 
-  sp  = ROUNDDOWN(buf, PROGRAM_ALIGNMENT);
-  len = ROUNDUP(len + (buf - sp), PROGRAM_ALIGNMENT);
+  sp  = ALIGN_DOWN(buf, PROGRAM_ALIGNMENT);
+  len = ALIGN_UP(len + (buf - sp), PROGRAM_ALIGNMENT);
   buf = sp;
 
   elf_emit(cinfo, (FAR void *)buf, len);
@@ -497,6 +514,39 @@ static void elf_emit_memory(FAR struct elf_dumpinfo_s *cinfo, int memsegs)
 }
 
 /****************************************************************************
+ * Name: elf_emit_info_note
+ *
+ * Description:
+ *   Fill the core info note
+ *
+ ****************************************************************************/
+
+static void elf_emit_info_note(FAR struct elf_dumpinfo_s *cinfo)
+{
+  struct coredump_info_s info;
+  Elf_Nhdr nhdr;
+  char name[COREDUMP_INFONAME_SIZE];
+
+  memset(&info, 0x0, sizeof(info));
+  memset(name, 0x0, sizeof(name));
+
+  nhdr.n_namesz = sizeof(name);
+  nhdr.n_descsz = sizeof(info);
+  nhdr.n_type   = COREDUMP_MAGIC;
+
+  elf_emit(cinfo, &nhdr, sizeof(nhdr));
+
+  strlcpy(name, "NuttX", sizeof(name));
+  elf_emit(cinfo, name, sizeof(name));
+
+  info.size = cinfo->stream->nput + sizeof(info);
+  clock_gettime(CLOCK_REALTIME, &info.time);
+  uname(&info.name);
+
+  elf_emit(cinfo, &info, sizeof(info));
+}
+
+/****************************************************************************
  * Name: elf_emit_tcb_phdr
  *
  * Description:
@@ -540,17 +590,17 @@ static void elf_emit_tcb_phdr(FAR struct elf_dumpinfo_s *cinfo,
                       (tcb->stack_base_ptr - tcb->stack_alloc_ptr);
     }
 
-  sp = ROUNDDOWN(phdr->p_vaddr, PROGRAM_ALIGNMENT);
-  phdr->p_filesz = ROUNDUP(phdr->p_filesz +
-                           (phdr->p_vaddr - sp), PROGRAM_ALIGNMENT);
+  sp = ALIGN_DOWN(phdr->p_vaddr, PROGRAM_ALIGNMENT);
+  phdr->p_filesz = ALIGN_UP(phdr->p_filesz +
+                            (phdr->p_vaddr - sp), PROGRAM_ALIGNMENT);
   phdr->p_vaddr  = sp;
 
   phdr->p_type   = PT_LOAD;
-  phdr->p_offset = ROUNDUP(*offset, ELF_PAGESIZE);
+  phdr->p_offset = ALIGN_UP(*offset, ELF_PAGESIZE);
   phdr->p_paddr  = phdr->p_vaddr;
   phdr->p_memsz  = phdr->p_filesz;
   phdr->p_flags  = PF_X | PF_W | PF_R;
-  *offset       += ROUNDUP(phdr->p_memsz, ELF_PAGESIZE);
+  *offset       += ALIGN_UP(phdr->p_memsz, ELF_PAGESIZE);
 
   elf_emit(cinfo, phdr, sizeof(*phdr));
 }
@@ -567,7 +617,7 @@ static void elf_emit_phdr(FAR struct elf_dumpinfo_s *cinfo,
                           int stksegs, int memsegs)
 {
   off_t offset = cinfo->stream->nput +
-                 (stksegs + memsegs + 1) * sizeof(Elf_Phdr);
+                 (stksegs + memsegs + 1 + 1) * sizeof(Elf_Phdr);
   Elf_Phdr phdr;
   int i;
 
@@ -602,15 +652,23 @@ static void elf_emit_phdr(FAR struct elf_dumpinfo_s *cinfo,
   for (i = 0; i < memsegs; i++)
     {
       phdr.p_type   = PT_LOAD;
-      phdr.p_offset = ROUNDUP(offset, ELF_PAGESIZE);
+      phdr.p_offset = ALIGN_UP(offset, ELF_PAGESIZE);
       phdr.p_vaddr  = cinfo->regions[i].start;
       phdr.p_paddr  = phdr.p_vaddr;
       phdr.p_filesz = cinfo->regions[i].end - cinfo->regions[i].start;
       phdr.p_memsz  = phdr.p_filesz;
       phdr.p_flags  = cinfo->regions[i].flags;
-      offset       += ROUNDUP(phdr.p_memsz, ELF_PAGESIZE);
+      offset       += ALIGN_UP(phdr.p_memsz, ELF_PAGESIZE);
       elf_emit(cinfo, &phdr, sizeof(phdr));
     }
+
+  memset(&phdr, 0, sizeof(Elf_Phdr));
+  phdr.p_type   = PT_NOTE;
+  phdr.p_offset = ALIGN_UP(offset, ELF_PAGESIZE);
+  phdr.p_filesz = elf_get_info_note_size();
+  offset       += phdr.p_filesz;
+
+  elf_emit(cinfo, &phdr, sizeof(phdr));
 }
 
 /****************************************************************************
@@ -670,94 +728,60 @@ static void coredump_dump_syslog(pid_t pid)
 #endif
 
 /****************************************************************************
- * Name: coredump_dump_blkdev
+ * Name: coredump_dump_dev
  *
  * Description:
- *   Save coredump to block device.
+ *   Save coredump to storage device.
  *
  ****************************************************************************/
 
-#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
-static void coredump_dump_blkdev(pid_t pid)
+#ifdef CONFIG_BOARD_COREDUMP_DEV
+static void coredump_dump_dev(pid_t pid)
 {
-  FAR void *stream = &g_blockstream;
-  FAR struct coredump_info_s *info;
-  blkcnt_t nsectors;
+  FAR void *stream = &g_devstream;
   int ret;
 
-  if (g_blockstream.inode == NULL)
+  if (g_devstream.inode == NULL)
     {
       _alert("Coredump device not found\n");
       return;
     }
 
-  nsectors = (sizeof(struct coredump_info_s) +
-              g_blockstream.geo.geo_sectorsize - 1) /
-             g_blockstream.geo.geo_sectorsize;
-
-  ret = g_blockstream.inode->u.i_bops->read(g_blockstream.inode,
-           g_blockinfo, g_blockstream.geo.geo_nsectors - nsectors, nsectors);
-  if (ret < 0)
-    {
-      _alert("Coredump information read fail\n");
-      return;
-    }
-
-  info = (FAR struct coredump_info_s *)g_blockinfo;
-
 #ifdef CONFIG_BOARD_COREDUMP_COMPRESSION
-  lib_lzfoutstream(&g_lzfstream,
-                   (FAR struct lib_outstream_s *)&g_blockstream);
+  lib_lzfoutstream(&g_lzfstream, stream);
   stream = &g_lzfstream;
 #endif
 
   ret = coredump(g_regions, stream, pid);
   if (ret < 0)
     {
-      _alert("Coredump fail\n");
+      _alert("Coredump fail %d\n", ret);
       return;
     }
 
-  info->magic = COREDUMP_MAGIC;
-  info->size  = g_blockstream.common.nput;
-  clock_gettime(CLOCK_REALTIME, &info->time);
-  uname(&info->name);
-  ret = g_blockstream.inode->u.i_bops->write(g_blockstream.inode,
-      (FAR void *)info, g_blockstream.geo.geo_nsectors - nsectors, nsectors);
-  if (ret < 0)
-    {
-      _alert("Coredump information write fail\n");
-      return;
-    }
-
-  /* Close block device directly, make sure all data write to block device */
-
-  ret = g_blockstream.inode->u.i_bops->close(g_blockstream.inode);
-  if (ret < 0)
-    {
-      _alert("Coredump information close fail\n");
-      return;
-    }
-
-  _alert("Finish coredump, write %d bytes to %s\n",
-         info->size, CONFIG_BOARD_COREDUMP_BLKDEV_PATH);
+  _alert("Finish coredump, write %zu bytes to %s\n",
+         g_devstream.common.nput, CONFIG_BOARD_COREDUMP_DEVPATH);
 }
 #endif
 
 /****************************************************************************
- * Name: coredump_set_memory_region
+ * Name: coredump_initialize_memory_region
  *
  * Description:
- *   Set do coredump memory region.
+ *   initialize the memory region with board memory range specified in config
  *
  ****************************************************************************/
 
-int coredump_set_memory_region(FAR const struct memory_region_s *region)
+static int coredump_initialize_memory_region(void)
 {
-  /* Not free g_regions, because allow call this fun when crash */
+#ifdef CONFIG_BOARD_MEMORY_RANGE
+  if (g_regions == NULL)
+    {
+      g_regions = g_memory_region;
+    }
+#endif
 
-  g_regions = region;
-  return 0;
+  return OK;
 }
 
 /****************************************************************************
@@ -773,6 +797,13 @@ int coredump_add_memory_region(FAR const void *ptr, size_t size,
 {
   FAR struct memory_region_s *region;
   size_t count = 1; /* 1 for end flag */
+  int ret;
+
+  ret = coredump_initialize_memory_region();
+  if (ret < 0)
+    {
+      return ret;
+    }
 
   if (g_regions != NULL)
     {
@@ -859,37 +890,30 @@ int coredump_add_memory_region(FAR const void *ptr, size_t size,
 
 int coredump_initialize(void)
 {
-  blkcnt_t nsectors;
   int ret = 0;
 
-#ifdef CONFIG_BOARD_MEMORY_RANGE
-  g_regions = g_memory_region;
-#endif
-
-#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
-  ret = lib_blkoutstream_open(&g_blockstream,
-                              CONFIG_BOARD_COREDUMP_BLKDEV_PATH);
+  ret = coredump_initialize_memory_region();
   if (ret < 0)
     {
-      _alert("%s Coredump device not found\n",
-             CONFIG_BOARD_COREDUMP_BLKDEV_PATH);
       return ret;
     }
 
-  nsectors = (sizeof(struct coredump_info_s) +
-              g_blockstream.geo.geo_sectorsize - 1) /
-             g_blockstream.geo.geo_sectorsize;
+#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
+  ret = lib_blkoutstream_open(&g_devstream,
+                              CONFIG_BOARD_COREDUMP_DEVPATH);
+#elif defined(CONFIG_BOARD_COREDUMP_MTDDEV)
+  ret = lib_mtdoutstream_open(&g_devstream,
+                              CONFIG_BOARD_COREDUMP_DEVPATH);
+#endif
 
-  g_blockinfo = kmm_malloc(g_blockstream.geo.geo_sectorsize * nsectors);
-  if (g_blockinfo == NULL)
+#ifdef CONFIG_BOARD_COREDUMP_DEV
+  if (ret < 0)
     {
-      _alert("Coredump device memory alloc fail\n");
-      lib_blkoutstream_close(&g_blockstream);
-      return -ENOMEM;
+      _alert("%s Coredump device not found %d\n",
+             CONFIG_BOARD_COREDUMP_DEVPATH, ret);
     }
 #endif
 
-  UNUSED(nsectors);
   return ret;
 }
 
@@ -910,8 +934,8 @@ void coredump_dump(pid_t pid)
   coredump_dump_syslog(pid);
 #endif
 
-#ifdef CONFIG_BOARD_COREDUMP_BLKDEV
-  coredump_dump_blkdev(pid);
+#ifdef CONFIG_BOARD_COREDUMP_DEV
+  coredump_dump_dev(pid);
 #endif
 }
 
@@ -961,9 +985,11 @@ int coredump(FAR const struct memory_region_s *regions,
              cinfo.regions[memsegs].end; memsegs++);
     }
 
-  /* Fill notes section */
+  /* Fill notes section, with additional one for program header,
+   * and one for the core file info defined by NuttX.
+   */
 
-  elf_emit_hdr(&cinfo, stksegs + memsegs + 1);
+  elf_emit_hdr(&cinfo, stksegs + memsegs + 1 + 1);
 
   /* Fill all the program information about the process for the
    * notes.  This also sets up the file header.
@@ -989,6 +1015,10 @@ int coredump(FAR const struct memory_region_s *regions,
     {
       elf_emit_memory(&cinfo, memsegs);
     }
+
+  /* Emit core info note */
+
+  elf_emit_info_note(&cinfo);
 
   /* Flush the dump */
 

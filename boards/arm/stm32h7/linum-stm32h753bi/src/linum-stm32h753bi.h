@@ -103,7 +103,12 @@
 
 /* PWM */
 
-#define BUZZER_PWMTIMER 4
+#define BUZZER_PWMTIMER    4
+
+/* OneShot Timer */
+
+#define BOARD_TONE_ONESHOT_TIM     17  /* Timer 17 - Oneshot timer for note timings */
+#define BOARD_TONE_ONESHOT_TIM_RES 10  /* Timer 17 - Oneshot timer resolution (us)  */
 
 /* Ethernet
  *
@@ -120,10 +125,12 @@
 
 #define LINUMSTM32H753BI_QETIMER 5
 
-/* LCD */
+/* DISP_RESET */
 
 #define GPIO_LCD_DISP      (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                             GPIO_OUTPUT_SET|GPIO_PORTI|GPIO_PIN7)
+
+/* DISP_PWM */
 
 #define GPIO_LCD_BL        (GPIO_OUTPUT|GPIO_PUSHPULL|GPIO_SPEED_50MHz|\
                             GPIO_OUTPUT_SET|GPIO_PORTH|GPIO_PIN6)
@@ -263,6 +270,42 @@ int board_qencoder_initialize(int devno, int timerno);
 
 #ifdef CONFIG_CL_MFRC522
 int stm32_mfrc522initialize(const char *devpath);
+#endif
+
+/****************************************************************************
+ * Name: board_tone_initialize
+ *
+ * Input Parameters:
+ *   devno - The device number, used to build the device path as /dev/toneN
+ *
+ * Description:
+ *   Configure and initialize the tone generator.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_AUDIO_TONE
+int board_tone_initialize(int devno);
+#endif
+
+/****************************************************************************
+ * Name: stm32_tsc_setup
+ *
+ * Description:
+ *   This function is called by board-bringup logic to configure the
+ *   touchscreen device.  This function will register the driver as
+ *   /dev/inputN where N is the minor device number.
+ *
+ * Input Parameters:
+ *   minor   - The input device minor number
+ *
+ * Returned Value:
+ *   Zero is returned on success.  Otherwise, a negated errno value is
+ *   returned to indicate the nature of the failure.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_INPUT_FT5X06
+int stm32_tsc_setup(int minor);
 #endif
 
 #endif /* __BOARDS_ARM_STM32H7_LINUM_STM32H753BI_SRC_LINUM_STM32H753BI_H */

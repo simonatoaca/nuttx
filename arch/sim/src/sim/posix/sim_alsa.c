@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/sim/src/sim/posix/sim_alsa.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -301,6 +303,7 @@ static int sim_audio_close(struct sim_audio_s *priv)
   host_uninterruptible(snd_pcm_close, priv->pcm);
 
   priv->pcm = NULL;
+  priv->paused = false;
 
   return 0;
 }

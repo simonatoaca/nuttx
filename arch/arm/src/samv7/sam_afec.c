@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/samv7/sam_afec.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -87,6 +89,13 @@
 /****************************************************************************
  * Private Types
  ****************************************************************************/
+
+enum samv7_afec_triggers
+{
+  AFEC_TRIGGER_SW = 0,
+  AFEC_TRIGGER_TIMER,
+  AFEC_TRIGGER_PWM
+};
 
 struct samv7_dev_s
 {
@@ -184,14 +193,14 @@ static struct samv7_dev_s g_adcpriv0 =
   .initialized   = 0,
   .resolution    = CONFIG_SAMV7_AFEC0_RES,
 #if defined (CONFIG_SAMV7_AFEC0_PWMTRIG)
-  .trigger       = 2,
+  .trigger       = AFEC_TRIGGER_PWM,
   .event_line    = CONFIG_SAMV7_AFEC0_PWMEVENT,
 #elif defined (CONFIG_SAMV7_AFEC0_TIOATRIG)
-  .trigger       = 1,
+  .trigger       = AFEC_TRIGGER_TIMER,
   .timer_channel = CONFIG_SAMV7_AFEC0_TIOACHAN,
   .frequency     = CONFIG_SAMV7_AFEC0_TIOAFREQ,
 #else
-  .trigger       = 0,
+  .trigger       = AFEC_TRIGGER_SW,
 #endif
   .base          = SAM_AFEC0_BASE,
 };
@@ -228,14 +237,14 @@ static struct samv7_dev_s g_adcpriv1 =
   .initialized   = 0,
   .resolution    = CONFIG_SAMV7_AFEC1_RES,
 #if defined (CONFIG_SAMV7_AFEC1_PWMTRIG)
-  .trigger       = 2,
+  .trigger       = AFEC_TRIGGER_PWM,
   .event_line    = CONFIG_SAMV7_AFEC0_PWMEVENT,
 #elif defined (CONFIG_SAMV7_AFEC1_TIOATRIG)
-  .trigger       = 1,
+  .trigger       = AFEC_TRIGGER_TIMER,
   .timer_channel = CONFIG_SAMV7_AFEC1_TIOACHAN,
   .frequency     = CONFIG_SAMV7_AFEC1_TIOAFREQ,
 #else
-  .trigger       = 0,
+  .trigger       = AFEC_TRIGGER_SW,
 #endif
   .base          = SAM_AFEC1_BASE,
 };
@@ -628,7 +637,7 @@ static int sam_afec_trigger(struct samv7_dev_s *priv)
   int ret = OK;
 
 #ifdef CONFIG_SAMV7_AFEC_SWTRIG
-  if (priv->trigger == 0)
+  if (priv->trigger == AFEC_TRIGGER_SW)
     {
       ainfo("Setup software trigger\n");
 
@@ -641,7 +650,7 @@ static int sam_afec_trigger(struct samv7_dev_s *priv)
 
 #endif
 #ifdef CONFIG_SAMV7_AFEC_TIOATRIG
-  if (priv->trigger == 1)
+  if (priv->trigger == AFEC_TRIGGER_TIMER)
     {
       ainfo("Setup timer/counter trigger\n");
 
@@ -674,7 +683,7 @@ static int sam_afec_trigger(struct samv7_dev_s *priv)
 
 #endif
 #ifdef CONFIG_SAMV7_AFEC_PWMTRIG
-  if (priv->trigger == 2)
+  if (priv->trigger == AFEC_TRIGGER_PWM)
     {
       regval = afec_getreg(priv, SAM_AFEC_MR_OFFSET);
       regval &= ~AFEC_MR_TRGSEL_MASK;
@@ -753,7 +762,7 @@ static void afec_reset(struct adc_dev_s *dev)
 #endif
 
 #ifdef CONFIG_SAMV7_AFEC_TIOATRIG
-  if (priv->trigger == 1)
+  if (priv->trigger == AFEC_TRIGGER_TIMER)
     {
       sam_afec_freetimer(priv);
     }
@@ -1024,10 +1033,17 @@ static int afec_ioctl(struct adc_dev_s *dev, int cmd, unsigned long arg)
 
   switch (cmd)
     {
-#ifndef CONFIG_SAMV7_AFEC_TIOATRIG
+#ifdef CONFIG_SAMV7_AFEC_SWTRIG
       case ANIOC_TRIGGER:
         {
-          afec_putreg(priv, SAM_AFEC_CR_OFFSET, AFEC_CR_START);
+          if (priv->trigger == AFEC_TRIGGER_SW)
+            {
+              afec_putreg(priv, SAM_AFEC_CR_OFFSET, AFEC_CR_START);
+            }
+          else
+            {
+              ret = -ENOTTY;
+            }
         }
         break;
 #endif

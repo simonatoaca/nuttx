@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/armv8-r/arm_syscall.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -156,8 +158,9 @@ static void dispatch_syscall(void)
 
 uint32_t *arm_syscall(uint32_t *regs)
 {
-  struct tcb_s **running_task = &g_running_tasks[this_cpu()];
-  FAR struct tcb_s *tcb = this_task();
+  int cpu = this_cpu();
+  struct tcb_s **running_task = &g_running_tasks[cpu];
+  struct tcb_s *tcb = this_task();
   uint32_t cmd;
 #ifdef CONFIG_BUILD_PROTECTED
   uint32_t cpsr;
@@ -165,22 +168,26 @@ uint32_t *arm_syscall(uint32_t *regs)
 
   /* Nested interrupts are not supported */
 
-  DEBUGASSERT(up_current_regs() == NULL);
-
-  if (*running_task != NULL)
-    {
-      (*running_task)->xcp.regs = regs;
-    }
+  DEBUGASSERT(!up_interrupt_context());
 
   /* Current regs non-zero indicates that we are processing an interrupt;
    * current_regs is also used to manage interrupt level context switches.
    */
 
-  up_set_current_regs(regs);
+  up_set_interrupt_context(true);
 
   /* The SYSCALL command is in R0 on entry.  Parameters follow in R1..R7 */
 
   cmd = regs[REG_R0];
+
+  /* if cmd == SYS_restore_context (*running_task)->xcp.regs is valid
+   * should not be overwriten
+   */
+
+  if (cmd != SYS_restore_context)
+    {
+      (*running_task)->xcp.regs = regs;
+    }
 
   /* The SVCall software interrupt is called with R0 = system call command
    * and R1..R7 =  variable number of arguments depending on the system call.
@@ -251,51 +258,28 @@ uint32_t *arm_syscall(uint32_t *regs)
 
           rtcb->flags          &= ~TCB_FLAG_SYSCALL;
           nxsig_unmask_pendingsignal();
+          regs                  = tcb->xcp.regs;
         }
         break;
 #endif
 
-      /* R0=SYS_restore_context:  Restore task context
-       *
-       * void arm_fullcontextrestore(uint32_t *restoreregs)
-       *   noreturn_function;
-       *
-       * At this point, the following values are saved in context:
-       *
-       *   R0 = SYS_restore_context
-       *   R1 = restoreregs
-       */
+      case SYS_switch_context:
+
+        /* Update scheduler parameters */
+
+        nxsched_resume_scheduler(tcb);
 
       case SYS_restore_context:
-        {
-          /* Replace 'regs' with the pointer to the register set in
-           * regs[REG_R1].  On return from the system call, that register
-           * set will determine the restored context.
-           */
+        nxsched_suspend_scheduler(*running_task);
+        *running_task = tcb;
 
-          tcb->xcp.regs = (uint32_t *)regs[REG_R1];
-          DEBUGASSERT(up_current_regs());
-        }
-        break;
+        /* Restore the cpu lock */
 
-      /* R0=SYS_switch_context:  This a switch context command:
-       *
-       *   void arm_switchcontext(uint32_t **saveregs,
-       *                          uint32_t *restoreregs);
-       *
-       * At this point, the following values are saved in context:
-       *
-       *   R0 = SYS_switch_context
-       *   R1 = saveregs
-       *   R2 = restoreregs
-       *
-       * In this case, we do both: We save the context registers to the save
-       * register area reference by the saved contents of R1 and then set
-       * regs to the save register area referenced by the saved
-       * contents of R2.
-       */
-
-      case SYS_switch_context:
+        restore_critical_section(tcb, cpu);
+        regs = tcb->xcp.regs;
+#ifdef CONFIG_ARCH_ADDRENV
+        addrenv_switch(tcb);
+#endif
         break;
 
       /* R0=SYS_task_start:  This a user task start
@@ -424,7 +408,7 @@ uint32_t *arm_syscall(uint32_t *regs)
 
               /* Copy "info" into user stack */
 
-              if (rtcb->sigdeliver)
+              if ((rtcb->flags & TCB_FLAG_SIGDELIVER) != 0)
                 {
                   usp = rtcb->xcp.saved_regs[REG_SP];
                 }
@@ -561,34 +545,19 @@ uint32_t *arm_syscall(uint32_t *regs)
         break;
     }
 
-  if (*running_task != tcb)
-    {
-      /* Update scheduler parameters */
-
-      nxsched_suspend_scheduler(*running_task);
-      nxsched_resume_scheduler(tcb);
-
-      /* Record the new "running" task.  g_running_tasks[] is only used by
-       * assertion logic for reporting crashes.
-       */
-
-      *running_task = tcb;
-
-      /* Restore the cpu lock */
-
-      restore_critical_section(tcb, this_cpu());
-      regs = tcb->xcp.regs;
-    }
-
   /* Report what happened */
 
   dump_syscall("Exit", cmd, regs);
 
-  /* Set current_regs to NULL to indicate that we are no longer in an
-   * interrupt handler.
+  /* Set irq flag */
+
+  up_set_interrupt_context(false);
+
+  /* (*running_task)->xcp.regs is about to become invalid
+   * and will be marked as NULL to avoid misusage.
    */
 
-  up_set_current_regs(NULL);
+  (*running_task)->xcp.regs = NULL;
 
   /* Return the last value of curent_regs.  This supports context switches
    * on return from the exception.  That capability is only used with the

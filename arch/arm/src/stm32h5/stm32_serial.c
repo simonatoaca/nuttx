@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32h5/stm32_serial.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -294,6 +296,7 @@ struct stm32_serial_s
   const bool        rs485_dir_polarity; /* U[S]ART RS-485 DIR pin state for TX enabled */
 #endif
   const bool        islpuart;  /* Is this device a Low Power UART? */
+  spinlock_t        lock;
 };
 
 /****************************************************************************
@@ -445,6 +448,54 @@ static char g_uart5rxfifo[RXDMA_BUFFER_SIZE];
 #  endif
 #endif
 
+#ifdef CONFIG_STM32H5_USART6_SERIALDRIVER
+static char g_usart6rxbuffer[CONFIG_USART6_RXBUFSIZE];
+static char g_usart6txbuffer[CONFIG_USART6_TXBUFSIZE];
+#  ifdef CONFIG_USART6_RXDMA
+static char g_usart6rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
+#ifdef CONFIG_STM32H7_UART7_SERIALDRIVER
+static char g_uart7rxbuffer[CONFIG_UART7_RXBUFSIZE];
+static char g_uart7txbuffer[CONFIG_UART7_TXBUFSIZE];
+#  ifdef CONFIG_UART7_RXDMA
+static char g_uart7rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
+#ifdef CONFIG_STM32H8_UART8_SERIALDRIVER
+static char g_uart8rxbuffer[CONFIG_UART8_RXBUFSIZE];
+static char g_uart8txbuffer[CONFIG_UART8_TXBUFSIZE];
+#  ifdef CONFIG_UART8_RXDMA
+static char g_uart8rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
+#ifdef CONFIG_STM32H5_USART10_SERIALDRIVER
+static char g_usart10rxbuffer[CONFIG_USART10_RXBUFSIZE];
+static char g_usart10txbuffer[CONFIG_USART10_TXBUFSIZE];
+#  ifdef CONFIG_USART10_RXDMA
+static char g_usart10rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
+#ifdef CONFIG_STM32H5_USART11_SERIALDRIVER
+static char g_usart11rxbuffer[CONFIG_USART11_RXBUFSIZE];
+static char g_usart11txbuffer[CONFIG_USART11_TXBUFSIZE];
+#  ifdef CONFIG_USART11_RXDMA
+static char g_usart11rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
+#ifdef CONFIG_STM32H12_UART12_SERIALDRIVER
+static char g_uart12rxbuffer[CONFIG_UART12_RXBUFSIZE];
+static char g_uart12txbuffer[CONFIG_UART12_TXBUFSIZE];
+#  ifdef CONFIG_UART12_RXDMA
+static char g_uart12rxfifo[RXDMA_BUFFER_SIZE];
+#  endif
+#endif
+
 /* This describes the state of the STM32 USART1 ports. */
 
 #ifdef CONFIG_STM32H5_LPUART1_SERIALDRIVER
@@ -474,7 +525,7 @@ static struct stm32_serial_s g_lpuart1priv =
     },
 
   .islpuart      = true,
-  .irq           = STM32H5_IRQ_LPUART1,
+  .irq           = STM32_IRQ_LPUART1,
   .parity        = CONFIG_LPUART1_PARITY,
   .bits          = CONFIG_LPUART1_BITS,
   .stopbits2     = CONFIG_LPUART1_2STOP,
@@ -504,6 +555,7 @@ static struct stm32_serial_s g_lpuart1priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -534,7 +586,7 @@ static struct stm32_serial_s g_usart1priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_USART1,
+  .irq           = STM32_IRQ_USART1,
   .parity        = CONFIG_USART1_PARITY,
   .bits          = CONFIG_USART1_BITS,
   .stopbits2     = CONFIG_USART1_2STOP,
@@ -564,6 +616,7 @@ static struct stm32_serial_s g_usart1priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -596,7 +649,7 @@ static struct stm32_serial_s g_usart2priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_USART2,
+  .irq           = STM32_IRQ_USART2,
   .parity        = CONFIG_USART2_PARITY,
   .bits          = CONFIG_USART2_BITS,
   .stopbits2     = CONFIG_USART2_2STOP,
@@ -626,6 +679,7 @@ static struct stm32_serial_s g_usart2priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -688,6 +742,7 @@ static struct stm32_serial_s g_usart3priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -720,7 +775,7 @@ static struct stm32_serial_s g_uart4priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_UART4,
+  .irq           = STM32_IRQ_UART4,
   .parity        = CONFIG_UART4_PARITY,
   .bits          = CONFIG_UART4_BITS,
   .stopbits2     = CONFIG_UART4_2STOP,
@@ -750,6 +805,7 @@ static struct stm32_serial_s g_uart4priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -782,7 +838,7 @@ static struct stm32_serial_s g_uart5priv =
     },
 
   .islpuart      = false,
-  .irq            = STM32H5_IRQ_UART5,
+  .irq            = STM32_IRQ_UART5,
   .parity         = CONFIG_UART5_PARITY,
   .bits           = CONFIG_UART5_BITS,
   .stopbits2      = CONFIG_UART5_2STOP,
@@ -812,6 +868,7 @@ static struct stm32_serial_s g_uart5priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -844,7 +901,7 @@ static struct stm32_serial_s g_usart6priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_USART6,
+  .irq           = STM32_IRQ_USART6,
   .parity        = CONFIG_USART6_PARITY,
   .bits          = CONFIG_USART6_BITS,
   .stopbits2     = CONFIG_USART6_2STOP,
@@ -874,6 +931,7 @@ static struct stm32_serial_s g_usart6priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -906,7 +964,7 @@ static struct stm32_serial_s g_uart7priv =
     },
 
   .islpuart      = false,
-  .irq            = STM32H5_IRQ_UART7,
+  .irq            = STM32_IRQ_UART7,
   .parity         = CONFIG_UART7_PARITY,
   .bits           = CONFIG_UART7_BITS,
   .stopbits2      = CONFIG_UART7_2STOP,
@@ -936,6 +994,7 @@ static struct stm32_serial_s g_uart7priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -968,7 +1027,7 @@ static struct stm32_serial_s g_uart8priv =
     },
 
   .islpuart      = false,
-  .irq            = STM32H5_IRQ_UART8,
+  .irq            = STM32_IRQ_UART8,
   .parity         = CONFIG_UART8_PARITY,
   .bits           = CONFIG_UART8_BITS,
   .stopbits2      = CONFIG_UART8_2STOP,
@@ -998,6 +1057,7 @@ static struct stm32_serial_s g_uart8priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -1030,7 +1090,7 @@ static struct stm32_serial_s g_uart9priv =
     },
 
   .islpuart      = false,
-  .irq            = STM32H5_IRQ_UART9,
+  .irq            = STM32_IRQ_UART9,
   .parity         = CONFIG_UART9_PARITY,
   .bits           = CONFIG_UART9_BITS,
   .stopbits2      = CONFIG_UART9_2STOP,
@@ -1060,6 +1120,7 @@ static struct stm32_serial_s g_uart9priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -1092,7 +1153,7 @@ static struct stm32_serial_s g_usart10priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_USART10,
+  .irq           = STM32_IRQ_USART10,
   .parity        = CONFIG_USART10_PARITY,
   .bits          = CONFIG_USART10_BITS,
   .stopbits2     = CONFIG_USART10_2STOP,
@@ -1122,6 +1183,7 @@ static struct stm32_serial_s g_usart10priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -1154,7 +1216,7 @@ static struct stm32_serial_s g_usart11priv =
     },
 
   .islpuart      = false,
-  .irq           = STM32H5_IRQ_USART11,
+  .irq           = STM32_IRQ_USART11,
   .parity        = CONFIG_USART11_PARITY,
   .bits          = CONFIG_USART11_BITS,
   .stopbits2     = CONFIG_USART11_2STOP,
@@ -1184,6 +1246,7 @@ static struct stm32_serial_s g_usart11priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -1216,7 +1279,7 @@ static struct stm32_serial_s g_uart12priv =
     },
 
   .islpuart      = false,
-  .irq            = STM32H5_IRQ_UART12,
+  .irq            = STM32_IRQ_UART12,
   .parity         = CONFIG_UART12_PARITY,
   .bits           = CONFIG_UART12_BITS,
   .stopbits2      = CONFIG_UART12_2STOP,
@@ -1246,6 +1309,7 @@ static struct stm32_serial_s g_uart12priv =
   .rs485_dir_polarity = true,
 #    endif
 #  endif
+  .lock               = SP_UNLOCKED,
 };
 #endif
 
@@ -1373,11 +1437,11 @@ static void stm32serial_restoreusartint(struct stm32_serial_s *priv,
 {
   irqstate_t flags;
 
-  flags = spin_lock_irqsave(NULL);
+  flags = spin_lock_irqsave(&priv->lock);
 
   stm32serial_setusartint(priv, ie);
 
-  spin_unlock_irqrestore(NULL, flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -1389,7 +1453,7 @@ static void stm32serial_disableusartint(struct stm32_serial_s *priv,
 {
   irqstate_t flags;
 
-  flags = spin_lock_irqsave(NULL);
+  flags = spin_lock_irqsave(&priv->lock);
 
   if (ie)
     {
@@ -1432,7 +1496,7 @@ static void stm32serial_disableusartint(struct stm32_serial_s *priv,
 
   stm32serial_setusartint(priv, 0);
 
-  spin_unlock_irqrestore(NULL, flags);
+  spin_unlock_irqrestore(&priv->lock, flags);
 }
 
 /****************************************************************************
@@ -1551,7 +1615,7 @@ static void stm32serial_setformat(struct uart_dev_s *dev)
 
       /* Write the PRESC register */
 
-      up_serialout(priv, STM32_USART_PRESC_OFFSET, presc_reg);
+      stm32serial_putreg(priv, STM32_USART_PRESC_OFFSET, presc_reg);
 
       /* Set the LPUART BRR value after setting Prescaler
        * BRR = ( (256 * apbclock_whole) + baud_rate / 2 ) / baud_rate

@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/include/stm32h5/chip.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -100,5 +102,11 @@
 #define NVIC_SYSH_PRIORITY_DEFAULT 0x80 /* Midpoint is the default */
 #define NVIC_SYSH_PRIORITY_MAX     0x00 /* Zero is maximum priority */
 #define NVIC_SYSH_PRIORITY_STEP    0x10 /* Four bits of interrupt priority used */
+
+#if defined(CONFIG_STM32H5_HAVE_ETHERNET)
+#  define STM32H5_NETHERNET             1   /* Ethernet MAC */
+#else
+#  define STM32H5_NETHERNET               0   /* No Ethernet MAC */
+#endif
 
 #endif /* __ARCH_ARM_INCLUDE_STM32H5_CHIP_H */

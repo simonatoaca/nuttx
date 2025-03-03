@@ -269,26 +269,26 @@ Peripheral Support
 
 The following list indicates the state of peripherals' support in NuttX:
 
-==============  =======
-Peripheral      Support
-==============  =======
+==============  ======= ====================
+Peripheral      Support NOTES
+==============  ======= ====================
 ADC              No
 AES              No
 Bluetooth        No
 CAN/TWAI         Yes
 DMA              Yes
 ECC              No
-eFuse            No
+eFuse            Yes
 GPIO             Yes
 HMAC             No
-I2C              Yes
-I2S              No
-Int. Temp.       No
+I2C              Yes    Master and Slave mode supported
+I2S              Yes
+Int. Temp.       Yes
 LED              No
 LED_PWM          Yes
 MCPWM            Yes
-Pulse Counter    No
-RMT              No
+Pulse Counter    Yes
+RMT              Yes
 RNG              No
 RSA              No
 RTC              Yes
@@ -302,7 +302,7 @@ UART             Yes
 Watchdog         Yes
 Wifi             Yes
 XTS              No
-==============  =======
+==============  ======= ====================
 
 Supported Boards
 ================

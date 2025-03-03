@@ -49,6 +49,7 @@
 #include <nuttx/spawn.h>
 #include <nuttx/queue.h>
 #include <nuttx/irq.h>
+#include <nuttx/spinlock_type.h>
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -239,8 +240,8 @@ struct file_operations
 
   CODE int     (*poll)(FAR struct file *filep, FAR struct pollfd *fds,
                        bool setup);
-  CODE ssize_t (*readv)(FAR struct file *filep, FAR const struct uio *uio);
-  CODE ssize_t (*writev)(FAR struct file *filep, FAR const struct uio *uio);
+  CODE ssize_t (*readv)(FAR struct file *filep, FAR struct uio *uio);
+  CODE ssize_t (*writev)(FAR struct file *filep, FAR struct uio *uio);
 
   /* The two structures need not be common after this point */
 
@@ -310,8 +311,8 @@ struct mountpt_operations
   CODE int     (*truncate)(FAR struct file *filep, off_t length);
   CODE int     (*poll)(FAR struct file *filep, FAR struct pollfd *fds,
                        bool setup);
-  CODE ssize_t (*readv)(FAR struct file *filep, FAR const struct uio *uio);
-  CODE ssize_t (*writev)(FAR struct file *filep, FAR const struct uio *uio);
+  CODE ssize_t (*readv)(FAR struct file *filep, FAR struct uio *uio);
+  CODE ssize_t (*writev)(FAR struct file *filep, FAR struct uio *uio);
 
   /* The two structures need not be common after this point. The following
    * are extended methods needed to deal with the unique needs of mounted
@@ -403,7 +404,7 @@ struct inode
   FAR struct inode *i_parent;   /* Link to parent level inode */
   FAR struct inode *i_peer;     /* Link to same level inode */
   FAR struct inode *i_child;    /* Link to lower level inode */
-  atomic_short      i_crefs;    /* References to inode */
+  atomic_t          i_crefs;    /* References to inode */
   uint16_t          i_flags;    /* Flags for inode */
   union inode_ops_u u;          /* Inode operations */
   ino_t             i_ino;      /* Inode serial number */
@@ -460,7 +461,7 @@ struct file
 {
   int               f_oflags;   /* Open mode flags */
 #ifdef CONFIG_FS_REFCOUNT
-  int               f_refs;     /* Reference count */
+  atomic_t          f_refs;     /* Reference count */
 #endif
   off_t             f_pos;      /* File position */
   FAR struct inode *f_inode;    /* Driver or file system interface */
@@ -491,8 +492,8 @@ struct file
 
 struct filelist
 {
+  spinlock_t        fl_lock;    /* Manage access to the file list */
   uint8_t           fl_rows;    /* The number of rows of fl_files array */
-  uint8_t           fl_crefs;   /* The references to filelist */
   FAR struct file **fl_files;   /* The pointer of two layer file descriptors array */
 
   /* Pre-allocated files to avoid allocator access during thread creation
@@ -903,16 +904,6 @@ void files_dumplist(FAR struct filelist *list);
 #else
 #  define files_dumplist(l)
 #endif
-
-/****************************************************************************
- * Name: files_getlist
- *
- * Description:
- *   Get the list of files by tcb.
- *
- ****************************************************************************/
-
-FAR struct filelist *files_getlist(FAR struct tcb_s *tcb);
 
 /****************************************************************************
  * Name: files_putlist
@@ -1428,7 +1419,8 @@ int close_mtddriver(FAR struct inode *pinode);
  ****************************************************************************/
 
 ssize_t file_read(FAR struct file *filep, FAR void *buf, size_t nbytes);
-ssize_t file_readv(FAR struct file *filep, FAR const struct uio *uio);
+ssize_t file_readv(FAR struct file *filep,
+                   FAR const struct iovec *iov, int iovcnt);
 
 /****************************************************************************
  * Name: nx_read
@@ -1482,7 +1474,8 @@ ssize_t nx_readv(int fd, FAR const struct iovec *iov, int iovcnt);
 
 ssize_t file_write(FAR struct file *filep, FAR const void *buf,
                    size_t nbytes);
-ssize_t file_writev(FAR struct file *filep, FAR const struct uio *uio);
+ssize_t file_writev(FAR struct file *filep,
+                    FAR const struct iovec *iov, int iovcnt);
 
 /****************************************************************************
  * Name: nx_write

@@ -1252,7 +1252,7 @@ config SCHED_INSTRUMENTATION_PREEMPTION
 		Enables additional hooks for changes to pre-emption state.  Board-
 		specific logic must provide this additional logic.
 
-			void sched_note_premption(FAR struct tcb_s *tcb, bool state);
+			void sched_note_preemption(FAR struct tcb_s *tcb, bool state);
 
 config SCHED_INSTRUMENTATION_CSECTION
 	bool "Critical section monitor hooks"
@@ -1399,18 +1399,6 @@ config FILE_STREAM
 	default !DEFAULT_SMALL
 	---help---
 		Enable the standard buffered input/output support
-
-config NAME_MAX
-	int "Maximum size of a file name"
-	default 32
-	---help---
-		The maximum size of a file name.
-
-config PATH_MAX
-	int "Maximum size of path name"
-	default 256
-	---help---
-		The maximum size of path name.
 
 endmenu # Files and I/O
 
@@ -2023,6 +2011,7 @@ config ASSERT_PAUSE_CPU_TIMEOUT
 config COREDUMP
 	bool "Coredump support"
 	depends on ARCH_HAVE_TCBINFO
+	select LIBC_ARCH_ELF
 	default n
 	---help---
 		Generate ELF core dump to provide information about the CPU state and the

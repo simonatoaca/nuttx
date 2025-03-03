@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/include/armv7-r/cp15.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -159,6 +161,8 @@
 
 #define CP15_CNTPCT(lo,hi) _CP15_64(0, lo, hi, c14)   /* Physical Count register */
 
+#define CP15_CNTP_CVAL(lo,hi) _CP15_64(2, lo, hi, c14) /* Physical Timer CompareValue register */
+
 #define CP15_DCIALLU(r)    _CP15(0, r, c15, c5, 0)   /* Invalidate data cache */
 
 #define CP15_SET(reg, value)            \
@@ -215,5 +219,7 @@
      );                                 \
      value;                             \
   })                                    \
+
+#define CP15_MODIFY(v,m,a) CP15_SET(a, ((CP15_GET(a) & ~(m)) | ((uintptr_t)(v) & (m))))
 
 #endif /* __ARCH_ARM_SRC_ARMV7_R_CP15_H */

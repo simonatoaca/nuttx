@@ -34,8 +34,6 @@
 #include <nuttx/fs/fs.h>
 #include <nuttx/irq.h>
 #include <nuttx/init.h>
-#include <nuttx/irq.h>
-#include <nuttx/fs/fs.h>
 #include <nuttx/tls.h>
 #include <nuttx/signal.h>
 #include <nuttx/sched.h>
@@ -113,6 +111,8 @@ static noreturn_function int pause_cpu_handler(FAR void *arg);
 #ifdef CONFIG_SMP
 static bool g_cpu_paused[CONFIG_SMP_NCPUS];
 #endif
+
+static spinlock_t g_assert_lock = SP_UNLOCKED;
 
 static uintptr_t g_last_regs[CONFIG_SMP_NCPUS][XCPTCONTEXT_REGS]
                  aligned_data(XCPTCONTEXT_ALIGN);
@@ -643,6 +643,11 @@ static void pause_all_cpu(void)
 }
 #endif
 
+#ifdef CONFIG_DEBUG_ALERT
+/****************************************************************************
+ * Name: dump_running_task
+ ****************************************************************************/
+
 static void dump_running_task(FAR struct tcb_s *rtcb, FAR void *regs)
 {
   /* Register dump */
@@ -665,6 +670,7 @@ static void dump_running_task(FAR struct tcb_s *rtcb, FAR void *regs)
  *
  * Description:
  *   Dump basic information of assertion
+ *
  ****************************************************************************/
 
 static void dump_assert_info(FAR struct tcb_s *rtcb,
@@ -710,6 +716,7 @@ static void dump_assert_info(FAR struct tcb_s *rtcb,
 
   syslog_flush();
 }
+#endif  /* CONFIG_DEBUG_ALERT */
 
 /****************************************************************************
  * Name: dump_fatal_info
@@ -719,7 +726,7 @@ static void dump_fatal_info(FAR struct tcb_s *rtcb,
                             FAR const char *filename, int linenum,
                             FAR const char *msg, FAR void *regs)
 {
-#ifdef CONFIG_SMP
+#if defined(CONFIG_SMP) && defined(CONFIG_DEBUG_ALERT)
   int cpu;
 
   /* Dump other CPUs registers, running task stack and backtrace. */
@@ -757,16 +764,13 @@ static void dump_fatal_info(FAR struct tcb_s *rtcb,
   usbtrace_enumerate(assert_tracecallback, NULL);
 #endif
 
-#ifdef CONFIG_BOARD_CRASHDUMP
-  board_crashdump(up_getsp(), rtcb, filename, linenum, msg, regs);
-#endif
-
-#if defined(CONFIG_BOARD_COREDUMP_SYSLOG) || \
-    defined(CONFIG_BOARD_COREDUMP_BLKDEV)
-
   /* Flush previous SYSLOG data before possible long time coredump */
 
   syslog_flush();
+
+#ifdef CONFIG_BOARD_CRASHDUMP_CUSTOM
+  board_crashdump(up_getsp(), rtcb, filename, linenum, msg, regs);
+#elif !defined(CONFIG_BOARD_CRASHDUMP_NONE)
 
   /* Dump core information */
 
@@ -835,7 +839,8 @@ void _assert(FAR const char *filename, int linenum,
   flags = 0; /* suppress GCC warning */
   if (os_ready)
     {
-      flags = enter_critical_section();
+      flags = spin_lock_irqsave(&g_assert_lock);
+      sched_lock();
     }
 
 #if CONFIG_BOARD_RESET_ON_ASSERT < 2
@@ -887,9 +892,11 @@ void _assert(FAR const char *filename, int linenum,
 
   syslog_flush();
 
+#ifdef CONFIG_DEBUG_ALERT
   /* Dump basic info of assertion. */
 
   dump_assert_info(rtcb, filename, linenum, msg, regs);
+#endif
 
   if (g_nx_initstate == OSINIT_PANIC)
     {
@@ -906,6 +913,7 @@ void _assert(FAR const char *filename, int linenum,
 
   if (os_ready)
     {
-      leave_critical_section(flags);
+      spin_unlock_irqrestore(&g_assert_lock, flags);
+      sched_unlock();
     }
 }

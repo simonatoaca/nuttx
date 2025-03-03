@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32h5/hardware/stm32_sbs.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -41,7 +43,7 @@
 
 /* Register Offsets *********************************************************/
 
-#define STM32_SBS_HDPLCR_OFFSET       0x0010  
+#define STM32_SBS_HDPLCR_OFFSET       0x0010
 #define STM32_SBS_HPDLSR_OFFSET       0x0014
 #define STM32_SBS_NEXTHDPLCR_OFFSET   0x0018
 #define STM32_SBS_DBGCR_OFFSET        0x0020
@@ -91,8 +93,8 @@
 #define SBS_PMCR_PB9_FMP  (1 << 19) /* Fast-mode Plus on PB9*/
 
 #define SBS_PMCR_ETH_SEL_PHY_SHIFT           (21) /* Bits 23-21 Ethernet PHY interface selection */
-#define SBS_PMCR_ETH_SEL_PHY_MASK            (0b111 << SBS_ETH_SEL_PHY_SHIFT)
-#  define SBS_PMCR_ETH_SEL_PHY_GMII_OR_MII   (0 << SBS_ETH_SEL_PHY_SHIFT)
-#  define SBS_PMCR_ETH_SEL_PHY_RMII          (4 << SBS_ETH_SEL_PHY_SHIFT)
+#define SBS_PMCR_ETH_SEL_PHY_MASK            (0b111 << SBS_PMCR_ETH_SEL_PHY_SHIFT)
+#  define SBS_PMCR_ETH_SEL_PHY_GMII_OR_MII   (0 << SBS_PMCR_ETH_SEL_PHY_SHIFT)
+#  define SBS_PMCR_ETH_SEL_PHY_RMII          (4 << SBS_PMCR_ETH_SEL_PHY_SHIFT)
 
 #endif /* __ARCH_ARM_SRC_STM32H5_HARDWARE_STM32_SBS_H */

@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32h5/hardware/stm32h5xxx_memorymap.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -124,9 +126,9 @@
 
 #define STM32_MPC_WM_BKPRAM_BASE 0x40036400
 #define STM32_GTZC1_BASE         0x40032400
-#define STM32_DCACHE_BASE        0x40030400
-#define STM32_ICACHE_BASE        0x40031400
-#define STM32_EMAC_BASE          0x40030400
+#define STM32_DCACHE_BASE        0x40031400
+#define STM32_ICACHE_BASE        0x40030400
+#define STM32_EMAC_BASE          0x40028000
 #define STM32_RAMCFG_BASE        0x40026000
 #define STM32_FMAC_BASE          0x40023c00
 #define STM32_CORDIC_BASE        0x40023800

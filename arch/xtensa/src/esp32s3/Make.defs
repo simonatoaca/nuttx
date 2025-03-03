@@ -47,10 +47,6 @@ ifeq ($(CONFIG_SMP),y)
 CHIP_CSRCS += esp32s3_cpuidlestack.c esp32s3_cpustart.c esp32s3_intercpu_interrupt.c
 endif
 
-ifeq ($(CONFIG_ARCH_HAVE_MULTICPU),y)
-CHIP_ASRCS  = esp32s3_cpuindex.S
-endif
-
 ifeq ($(CONFIG_ESP32S3_EFUSE),y)
 CHIP_CSRCS += esp32s3_efuse.c
 CHIP_CSRCS += esp32s3_efuse_table.c
@@ -114,7 +110,7 @@ CHIP_CSRCS += esp32s3_adc.c
 endif
 
 ifeq ($(CONFIG_ESP32S3_I2C),y)
-ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH),y)
+ifeq ($(CONFIG_ESPRESSIF_I2C_PERIPH_MASTER_MODE),y)
 CHIP_CSRCS += esp32s3_i2c.c
 endif
 endif
@@ -212,6 +208,15 @@ ifeq ($(CONFIG_ESP32S3_OPENETH),y)
 CHIP_CSRCS += esp_openeth.c
 endif
 
+ifeq ($(CONFIG_ESPRESSIF_WIFI),y)
+CHIP_CSRCS += esp32s3_wifi_adapter.c
+endif
+
+ifeq ($(CONFIG_ESPRESSIF_BLE),y)
+CHIP_CSRCS += esp32s3_ble_adapter.c esp32s3_ble.c
+EXTRA_LIBS += -lbtbb -lbtdm_app
+endif
+
 #############################################################################
 # Espressif HAL for 3rd Party Platforms
 #############################################################################
@@ -220,7 +225,7 @@ endif
 
 ESP_HAL_3RDPARTY_REPO = esp-hal-3rdparty
 ifndef ESP_HAL_3RDPARTY_VERSION
-	ESP_HAL_3RDPARTY_VERSION = e3899a2324c8e326db20f99f208e890fdd7a5b92
+	ESP_HAL_3RDPARTY_VERSION = e5cef265cca9d272c428d210453d574bcc25c5f4
 endif
 
 ifndef ESP_HAL_3RDPARTY_URL
@@ -273,16 +278,12 @@ include chip/hal.mk
 include common/espressif/Make.defs
 
 context:: chip/$(ESP_HAL_3RDPARTY_REPO)
-ifeq ($(CONFIG_ESP32S3_WIRELESS),y)
+ifeq ($(CONFIG_ESPRESSIF_WIRELESS),y)
 	$(Q) echo "Espressif HAL for 3rd Party Platforms: initializing submodules..."
 	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO) submodule --quiet update --init $(GIT_DEPTH_PARAMETER) components/mbedtls/mbedtls components/esp_phy/lib components/esp_wifi/lib components/bt/controller/lib_esp32c3_family components/esp_coex/lib
 	$(Q) git -C chip/$(ESP_HAL_3RDPARTY_REPO)/components/mbedtls/mbedtls reset --quiet --hard
 	$(Q) echo "Applying patches..."
 	$(Q) cd chip/$(ESP_HAL_3RDPARTY_REPO)/components/mbedtls/mbedtls && git apply ../../../nuttx/patches/components/mbedtls/mbedtls/*.patch
-endif
-
-ifeq ($(CONFIG_ESP32S3_WIRELESS),y)
-include chip/Wireless.mk
 endif
 
 distclean::

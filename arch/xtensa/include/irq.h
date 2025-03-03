@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/xtensa/include/irq.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -37,6 +39,7 @@
 #include <sys/types.h>
 #ifndef __ASSEMBLY__
 #  include <stdbool.h>
+#  include <arch/syscall.h>
 #endif
 
 #include <arch/types.h>
@@ -91,8 +94,9 @@
 #define REG_SAR             (18)
 #define REG_EXCCAUSE        (19)
 #define REG_EXCVADDR        (20)
+#define REG_THREADPTR       (21)
 
-#define _REG_EXTRA_START    (21)
+#define _REG_EXTRA_START    (22)
 
 #if XCHAL_HAVE_S32C1I != 0
 #  define REG_SCOMPARE1       (_REG_EXTRA_START + 0)
@@ -216,7 +220,7 @@ struct xcptcontext
 
 /* Return the current value of the PS register */
 
-static inline uint32_t xtensa_getps(void)
+static inline_function uint32_t xtensa_getps(void)
 {
   uint32_t ps;
 
@@ -230,7 +234,8 @@ static inline uint32_t xtensa_getps(void)
 
 /* Set the value of the PS register */
 
-noinstrument_function static inline void xtensa_setps(uint32_t ps)
+noinstrument_function static inline_function
+void xtensa_setps(uint32_t ps)
 {
   __asm__ __volatile__
   (
@@ -259,7 +264,8 @@ static inline_function uint32_t up_getsp(void)
 
 /* Restore the value of the PS register */
 
-noinstrument_function static inline void up_irq_restore(uint32_t ps)
+noinstrument_function static inline_function
+void up_irq_restore(uint32_t ps)
 {
   __asm__ __volatile__
   (
@@ -273,7 +279,7 @@ noinstrument_function static inline void up_irq_restore(uint32_t ps)
 
 /* Disable interrupts and return the previous value of the PS register */
 
-noinstrument_function static inline uint32_t up_irq_save(void)
+noinstrument_function static inline_function uint32_t up_irq_save(void)
 {
   uint32_t ps;
 
@@ -296,7 +302,7 @@ noinstrument_function static inline uint32_t up_irq_save(void)
 
 /* Enable interrupts at all levels */
 
-static inline void up_irq_enable(void)
+static inline_function void up_irq_enable(void)
 {
 #ifdef __XTENSA_CALL0_ABI__
   xtensa_setps(PS_INTLEVEL(0) | PS_UM);
@@ -307,7 +313,7 @@ static inline void up_irq_enable(void)
 
 /* Disable low- and medium- priority interrupts */
 
-noinstrument_function static inline void up_irq_disable(void)
+noinstrument_function static inline_function void up_irq_disable(void)
 {
 #ifdef __XTENSA_CALL0_ABI__
   xtensa_setps(PS_INTLEVEL(XCHAL_EXCM_LEVEL) | PS_UM);
@@ -320,7 +326,7 @@ noinstrument_function static inline void up_irq_disable(void)
  * Name: xtensa_disable_all
  ****************************************************************************/
 
-static inline void xtensa_disable_all(void)
+static inline_function void xtensa_disable_all(void)
 {
   __asm__ __volatile__
   (
@@ -335,7 +341,7 @@ static inline void xtensa_disable_all(void)
  * Name: xtensa_intclear
  ****************************************************************************/
 
-static inline void xtensa_intclear(uint32_t mask)
+static inline_function void xtensa_intclear(uint32_t mask)
 {
   __asm__ __volatile__
   (
@@ -360,17 +366,9 @@ extern "C"
  ****************************************************************************/
 
 #ifndef __ASSEMBLY__
-/* g_current_regs[] holds a references to the current interrupt level
- * register storage structure.  If is non-NULL only during interrupt
- * processing.  Access to g_current_regs[] must be through the
- * [get/set]_current_regs for portability.
- */
+/* g_interrupt_context store irq status */
 
-/* For the case of architectures with multiple CPUs, then there must be one
- * such value for each processor that can receive an interrupt.
- */
-
-EXTERN volatile uint32_t *g_current_regs[CONFIG_SMP_NCPUS];
+extern volatile bool g_interrupt_context[CONFIG_SMP_NCPUS];
 #endif
 
 /****************************************************************************
@@ -410,25 +408,28 @@ irqstate_t xtensa_disable_interrupts(irqstate_t mask);
  ****************************************************************************/
 
 #ifdef CONFIG_ARCH_HAVE_MULTICPU
-int up_cpu_index(void) noinstrument_function;
+noinstrument_function
+static inline_function int up_cpu_index(void)
+{
+  return xtensa_cpu_index();
+}
 #endif /* CONFIG_ARCH_HAVE_MULTICPU */
 
-noinstrument_function static inline_function uint32_t *up_current_regs(void)
-{
-#ifdef CONFIG_SMP
-  return (uint32_t *)g_current_regs[up_cpu_index()];
-#else
-  return (uint32_t *)g_current_regs[0];
-#endif
-}
+/****************************************************************************
+ * Name: up_set_interrupt_context
+ *
+ * Description:
+ *   Set the interrupt handler context.
+ *
+ ****************************************************************************/
 
 noinstrument_function
-static inline_function void up_set_current_regs(uint32_t *regs)
+static inline_function void up_set_interrupt_context(bool flag)
 {
 #ifdef CONFIG_SMP
-  g_current_regs[up_cpu_index()] = regs;
+  g_interrupt_context[up_cpu_index()] = flag;
 #else
-  g_current_regs[0] = regs;
+  g_interrupt_context[0] = flag;
 #endif
 }
 
@@ -446,24 +447,37 @@ noinstrument_function static inline_function bool up_interrupt_context(void)
 {
 #ifdef CONFIG_SMP
   irqstate_t flags = up_irq_save();
-#endif
-
-  bool ret = up_current_regs() != NULL;
-
-#ifdef CONFIG_SMP
+  bool ret = g_interrupt_context[up_cpu_index()];
   up_irq_restore(flags);
-#endif
-
   return ret;
+#else
+  return g_interrupt_context[0];
+#endif
 }
 #endif
+
+#define up_switch_context(tcb, rtcb)   \
+  do {                                 \
+    if (!up_interrupt_context())       \
+      {                                \
+        sys_call0(SYS_switch_context); \
+      }                                \
+    UNUSED(rtcb);                      \
+  } while (0)
 
 /****************************************************************************
  * Name: up_getusrpc
  ****************************************************************************/
 
 #define up_getusrpc(regs) \
-    (((uint32_t *)((regs) ? (regs) : up_current_regs()))[REG_PC])
+    (((uint32_t *)((regs) ? (regs) : running_regs()))[REG_PC])
+
+/****************************************************************************
+ * Name: up_getusrsp
+ ****************************************************************************/
+
+#define up_getusrsp(regs) \
+    (((uintptr_t*)(regs))[REG_A1])
 
 #undef EXTERN
 #ifdef __cplusplus

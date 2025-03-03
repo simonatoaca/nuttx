@@ -265,7 +265,7 @@
  *   Dependencies:   None
  *
  * CANIOC_SET_STATE
- *   Description:    Set specfic can controller state
+ *   Description:    Set specific can controller state
  *
  *   Argument:       A pointer to an int type that describes the CAN
  *                   controller state.
@@ -275,7 +275,7 @@
  *   Dependencies:   None
  *
  * CANIOC_GET_STATE
- *   Description:    Get specfic can controller state
+ *   Description:    Get specific can controller state
  *
  *   Argument:       A pointer to an int type that describes the CAN
  *                   controller state.
@@ -285,7 +285,7 @@
  *   Dependencies:   None
  *
  * CANIOC_SET_TRANSV_STATE
- *   Description:    Set specfic can transceiver state
+ *   Description:    Set specific can transceiver state
  *
  *   Argument:       A pointer to an int type that describes the CAN
  *                   transceiver state.
@@ -295,7 +295,7 @@
  *   Dependencies:   None
  *
  * CANIOC_GET_TRANSV_STATE
- *   Description:    Get specfic can transceiver state
+ *   Description:    Get specific can transceiver state
  *
  *   Argument:       A pointer to an int type that describes the CAN
  *                   transceiver state.
@@ -622,11 +622,11 @@ begin_packed_struct struct can_hdr_s
 } end_packed_struct;
 #endif
 
-begin_packed_struct struct can_msg_s
+struct can_msg_s
 {
   struct can_hdr_s cm_hdr;                  /* The CAN header */
   uint8_t          cm_data[CAN_MAXDATALEN]; /* CAN message data (0-8 byte) */
-} end_packed_struct;
+};
 
 /* This structure defines a CAN message FIFO. */
 
@@ -801,6 +801,7 @@ struct can_reader_s
 {
   struct list_node     list;
   struct can_rxfifo_s  fifo;             /* Describes receive FIFO */
+  FAR struct pollfd   *cd_fds;
 };
 
 struct can_transv_s
@@ -825,7 +826,6 @@ struct can_dev_s
   FAR const struct can_ops_s *cd_ops;    /* Arch-specific operations */
   FAR void            *cd_priv;          /* Used by the arch-specific logic */
   FAR struct can_transv_s *cd_transv;    /* Describes CAN transceiver */
-  FAR struct pollfd   *cd_fds[CONFIG_CAN_NPOLLWAITERS];
 };
 
 /* Structures used with ioctl calls */

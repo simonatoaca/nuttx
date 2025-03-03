@@ -754,7 +754,11 @@ static inline void netdev_upper_queue_work(FAR struct net_driver_s *dev)
   FAR struct netdev_upperhalf_s *upper = dev->d_private;
 
 #ifdef CONFIG_NETDEV_WORK_THREAD
+#  ifdef CONFIG_NETDEV_RSS
   int cpu = this_cpu();
+#  else
+  const int cpu = 0;
+#  endif
   int semcount;
 
   if (nxsem_get_value(&upper->sem[cpu], &semcount) == OK &&
@@ -1363,24 +1367,6 @@ void netdev_lower_txdone(FAR struct netdev_lowerhalf_s *dev)
 #if CONFIG_NETDEV_WORK_THREAD_POLLING_PERIOD == 0
   netdev_upper_queue_work(&dev->netdev);
 #endif
-}
-
-/****************************************************************************
- * Name: netdev_lower_quota_load
- *
- * Description:
- *   Fetch the quota, works like atomic_load.
- *
- * Input Parameters:
- *   dev  - The lower half device driver structure
- *   type - Whether get quota for TX or RX
- *
- ****************************************************************************/
-
-int netdev_lower_quota_load(FAR struct netdev_lowerhalf_s *dev,
-                            enum netpkt_type_e type)
-{
-  return atomic_load(&dev->quota[type]);
 }
 
 /****************************************************************************

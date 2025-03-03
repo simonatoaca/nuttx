@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/common/arm64_initialstate.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -82,6 +84,11 @@ void arm64_new_task(struct tcb_s * tcb)
   xcp->regs[REG_SPSR]      = SPSR_MODE_EL3H;
 #else
   xcp->regs[REG_SPSR]      = SPSR_MODE_EL1H;
+#endif
+
+  xcp->regs[REG_SCTLR_EL1] = read_sysreg(sctlr_el1);
+#ifdef CONFIG_ARM64_MTE
+  xcp->regs[REG_SCTLR_EL1] |= SCTLR_TCF1_BIT;
 #endif
 
 #ifdef CONFIG_SUPPRESS_INTERRUPTS

@@ -65,8 +65,16 @@
 #  include <nuttx/input/buttons.h>
 #endif
 
+#ifdef CONFIG_ESPRESSIF_EFUSE
+#  include "espressif/esp_efuse.h"
+#endif
+
 #ifdef CONFIG_ESP_RMT
 #  include "esp_board_rmt.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_I2S
+#  include "esp_board_i2s.h"
 #endif
 
 #ifdef CONFIG_ESPRESSIF_SPI
@@ -88,6 +96,15 @@
 
 #ifdef CONFIG_ESP_MCPWM
 #  include "esp_board_mcpwm.h"
+#endif
+
+#ifdef CONFIG_ESP_PCNT
+#  include "espressif/esp_pcnt.h"
+#  include "esp_board_pcnt.h"
+#endif
+
+#ifdef CONFIG_SYSTEM_NXDIAG_ESPRESSIF_CHIP_WO_TOOL
+#  include "espressif/esp_nxdiag.h"
 #endif
 
 #include "esp32h2-devkit.h"
@@ -142,6 +159,14 @@ int esp_bringup(void)
   if (ret < 0)
     {
       _err("Failed to mount tmpfs at %s: %d\n", CONFIG_LIBC_TMPDIR, ret);
+    }
+#endif
+
+#if defined(CONFIG_ESPRESSIF_EFUSE)
+  ret = esp_efuse_initialize("/dev/efuse");
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to init EFUSE: %d\n", ret);
     }
 #endif
 
@@ -243,6 +268,16 @@ int esp_bringup(void)
     }
 #endif
 
+#if defined(CONFIG_ESPRESSIF_I2S)
+  /* Configure I2S peripheral interfaces */
+
+  ret = board_i2s_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize I2S driver: %d\n", ret);
+    }
+#endif
+
 #if defined(CONFIG_I2C_DRIVER)
   /* Configure I2C peripheral interfaces */
 
@@ -335,6 +370,22 @@ int esp_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: board_motor_initialize failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_ESP_PCNT
+  ret = board_pcnt_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: board_pcnt_initialize failed: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_SYSTEM_NXDIAG_ESPRESSIF_CHIP_WO_TOOL
+  ret = esp_nxdiag_initialize();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "ERROR: esp_nxdiag_initialize failed: %d\n", ret);
     }
 #endif
 

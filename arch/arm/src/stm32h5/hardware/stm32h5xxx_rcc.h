@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm/src/stm32h5/hardware/stm32h5xxx_rcc.h
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -141,7 +143,7 @@
 #define RCC_CR_HSIRDY                    (1 << 1)  /* Bit    1: Internal High Speed clock ready flag */
 #define RCC_CR_HSIKERON                  (1 << 2)  /* Bit    2: HSI clock enable in Stop mode */
 #define RCC_CR_HSIDIV_SHIFT              (3)       /* Bit [4:3] HSI Divider */
-#define RCC_CR_HSIDIV_MASK               (0x3 << RCC_CR_HSIDIV_SHIFT) 
+#define RCC_CR_HSIDIV_MASK               (0x3 << RCC_CR_HSIDIV_SHIFT)
 #  define RCC_CR_HSIDIV(n)               (((n) << RCC_CR_HSIDIV_SHIFT & RCC_CR_HSIDIV_MASK))
 #define RCC_CR_HSIDIVF                   (1 << 5)  /* Bit    5: HSI divider flag */
 
@@ -156,7 +158,7 @@
 #define RCC_CR_HSERDY                    (1 << 17) /* Bit    17:  HSE clock ready flag */
 #define RCC_CR_HSEBYP                    (1 << 18) /* Bit    18:  HSE clock bypass */
 #define RCC_CR_HSECSSON                  (1 << 19) /* Bit    19:  HSE clock security system enable */
-#define RCC_CR_HSEEXT                    (1 << 20) /* Bit    20:  HSE external high speed clock 
+#define RCC_CR_HSEEXT                    (1 << 20) /* Bit    20:  HSE external high speed clock
                                                     *             type in bypass mode */
 #define RCC_CR_PLL1ON                    (1 << 24) /* Bit    24: PLL1 enable */
 #define RCC_CR_PLL1RDY                   (1 << 25) /* Bit    25: PLL1 clock ready flag */
@@ -1000,7 +1002,7 @@
 #  define RCC_CCIPR3_SPI1SEL_PLL2PCK     (1 << RCC_CCIPR3_SPI1SEL_SHIFT)
 #  define RCC_CCIPR3_SPI1SEL_PLL3PCK     (2 << RCC_CCIPR3_SPI1SEL_SHIFT)
 #  define RCC_CCIPR3_SPI1SEL_AUDIOCK     (3 << RCC_CCIPR3_SPI1SEL_SHIFT)
-#  define RCC_CCIPR3_SPI1SEL_PERCKv      (4 << RCC_CCIPR3_SPI1SEL_SHIFT)
+#  define RCC_CCIPR3_SPI1SEL_PERCK       (4 << RCC_CCIPR3_SPI1SEL_SHIFT)
 
 #define RCC_CCIPR3_SPI2SEL_SHIFT         (3)
 #define RCC_CCIPR3_SPI2SEL_MASK          (7 << RCC_CCIPR3_SPI2SEL_SHIFT)
@@ -1008,7 +1010,7 @@
 #  define RCC_CCIPR3_SPI2SEL_PLL2PCK     (1 << RCC_CCIPR3_SPI2SEL_SHIFT)
 #  define RCC_CCIPR3_SPI2SEL_PLL3PCK     (2 << RCC_CCIPR3_SPI2SEL_SHIFT)
 #  define RCC_CCIPR3_SPI2SEL_AUDIOCK     (3 << RCC_CCIPR3_SPI2SEL_SHIFT)
-#  define RCC_CCIPR3_SPI2SEL_PERCKv      (4 << RCC_CCIPR3_SPI2SEL_SHIFT)
+#  define RCC_CCIPR3_SPI2SEL_PERCK       (4 << RCC_CCIPR3_SPI2SEL_SHIFT)
 
 #define RCC_CCIPR3_SPI3SEL_SHIFT         (6)
 #define RCC_CCIPR3_SPI3SEL_MASK          (7 << RCC_CCIPR3_SPI3SEL_SHIFT)
@@ -1016,11 +1018,11 @@
 #  define RCC_CCIPR3_SPI3SEL_PLL2PCK     (1 << RCC_CCIPR3_SPI3SEL_SHIFT)
 #  define RCC_CCIPR3_SPI3SEL_PLL3PCK     (2 << RCC_CCIPR3_SPI3SEL_SHIFT)
 #  define RCC_CCIPR3_SPI3SEL_AUDIOCK     (3 << RCC_CCIPR3_SPI3SEL_SHIFT)
-#  define RCC_CCIPR3_SPI3SEL_PERCKv      (4 << RCC_CCIPR3_SPI3SEL_SHIFT)
+#  define RCC_CCIPR3_SPI3SEL_PERCK       (4 << RCC_CCIPR3_SPI3SEL_SHIFT)
 
 #define RCC_CCIPR3_SPI4SEL_SHIFT         (9)
 #define RCC_CCIPR3_SPI4SEL_MASK          (7 << RCC_CCIPR3_SPI4SEL_SHIFT)
-#  define RCC_CCIPR3_SPI4SEL_RCCPCLK1    (0 << RCC_CCIPR3_SPI4SEL_SHIFT)
+#  define RCC_CCIPR3_SPI4SEL_RCCPCLK2    (0 << RCC_CCIPR3_SPI4SEL_SHIFT)
 #  define RCC_CCIPR3_SPI4SEL_PLL2QCK     (1 << RCC_CCIPR3_SPI4SEL_SHIFT)
 #  define RCC_CCIPR3_SPI4SEL_PLL3QCK     (2 << RCC_CCIPR3_SPI4SEL_SHIFT)
 #  define RCC_CCIPR3_SPI4SEL_HSIKERCK    (3 << RCC_CCIPR3_SPI4SEL_SHIFT)
@@ -1130,7 +1132,7 @@
 #  define RCC_CCIPR5_ADCDACSEL_PLL2RCK    (2 << RCC_CCIPR5_ADCDACSEL_SHIFT)
 #  define RCC_CCIPR5_ADCDACSEL_HSECK      (3 << RCC_CCIPR5_ADCDACSEL_SHIFT)
 #  define RCC_CCIPR5_ADCDACSEL_HSEKERCK   (4 << RCC_CCIPR5_ADCDACSEL_SHIFT)
-#  define RCC_CCIPR5_ADCDACSEL_CSIKERCK   (4 << RCC_CCIPR5_ADCDACSEL_SHIFT)
+#  define RCC_CCIPR5_ADCDACSEL_CSIKERCK   (5 << RCC_CCIPR5_ADCDACSEL_SHIFT)
 
 #define RCC_CCIPR5_DACSEL                 (1 << 3)
 
@@ -1221,18 +1223,18 @@
 
 /* Secure Configuration Register */
 
-#define RCC_SECCFGR_HSISEC               (1 << 0)  /* HSI clock configuration and status bits security */ 
-#define RCC_SECCFGR_HSESEC               (1 << 1)  /* HSE clock configuration and status bits security */ 
-#define RCC_SECCFGR_CSISEC               (1 << 2)  /* CSI clock configuration and status bits security */ 
-#define RCC_SECCFGR_LSISEC               (1 << 3)  /* LSI clock configuration and status bits security */ 
-#define RCC_SECCFGR_LSESEC               (1 << 4)  /* LSE clock configuration and status bits security */ 
-#define RCC_SECCFGR_SYSCLKSEC            (1 << 5)  /* SYSCLK configuration and status bits security */ 
-#define RCC_SECCFGR_PRESCSEC             (1 << 6)  /* PRESC configuration and status bits security */ 
-#define RCC_SECCFGR_PLL1SEC              (1 << 7)  /* PLL1 configuration and status bits security */ 
-#define RCC_SECCFGR_PLL2SEC              (1 << 8)  /* PLL2 configuration and status bits security */ 
-#define RCC_SECCFGR_PLL3SEC              (1 << 9)  /* PLL3 configuration and status bits security */ 
-#define RCC_SECCFGR_HSI48SEC             (1 << 11) /* HSI48 configuration and status bits security */ 
-#define RCC_SECCFGR_RMVRST               (1 << 12) /* Remove Reset flag security */ 
+#define RCC_SECCFGR_HSISEC               (1 << 0)  /* HSI clock configuration and status bits security */
+#define RCC_SECCFGR_HSESEC               (1 << 1)  /* HSE clock configuration and status bits security */
+#define RCC_SECCFGR_CSISEC               (1 << 2)  /* CSI clock configuration and status bits security */
+#define RCC_SECCFGR_LSISEC               (1 << 3)  /* LSI clock configuration and status bits security */
+#define RCC_SECCFGR_LSESEC               (1 << 4)  /* LSE clock configuration and status bits security */
+#define RCC_SECCFGR_SYSCLKSEC            (1 << 5)  /* SYSCLK configuration and status bits security */
+#define RCC_SECCFGR_PRESCSEC             (1 << 6)  /* PRESC configuration and status bits security */
+#define RCC_SECCFGR_PLL1SEC              (1 << 7)  /* PLL1 configuration and status bits security */
+#define RCC_SECCFGR_PLL2SEC              (1 << 8)  /* PLL2 configuration and status bits security */
+#define RCC_SECCFGR_PLL3SEC              (1 << 9)  /* PLL3 configuration and status bits security */
+#define RCC_SECCFGR_HSI48SEC             (1 << 11) /* HSI48 configuration and status bits security */
+#define RCC_SECCFGR_RMVRST               (1 << 12) /* Remove Reset flag security */
 #define RCC_SECCFGR_CKPERSELSEC          (1 << 13) /* PER_CK selection security */
 
 /* Privilege Configuration Register */

@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/zynq-mpsoc/zynq_boot.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -33,6 +35,7 @@
 #  include <nuttx/page.h>
 #endif
 
+#include <arch/barriers.h>
 #include <arch/chip/chip.h>
 
 #ifdef CONFIG_SMP
@@ -97,7 +100,7 @@ void arm64_el_init(void)
   /* At EL3, cntfrq_el0 is uninitialized. It must be set. */
 
   write_sysreg(CONFIG_XPAR_CPU_CORTEXA53_0_TIMESTAMP_CLK_FREQ, cntfrq_el0);
-  ARM64_ISB();
+  UP_ISB();
 #endif
 }
 
@@ -200,10 +203,3 @@ void arm64_chip_boot(void)
   up_perf_init((void *)CONFIG_SYS_CLOCK_HW_CYCLES_PER_SEC);
 #endif
 }
-
-#if defined(CONFIG_NET) && !defined(CONFIG_NETDEV_LATEINIT)
-void arm64_netinitialize(void)
-{
-  /* TODO: Support net initialize */
-}
-#endif

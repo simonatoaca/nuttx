@@ -31,6 +31,7 @@
 #include "stm32_pwr.h"
 #include "stm32_flash.h"
 #include "stm32_rcc.h"
+#include "stm32_hsi48.h"
 
 /****************************************************************************
  * Pre-processor Definitions
@@ -58,7 +59,7 @@
 
 #if defined(CONFIG_STM32H5_HAVE_HSI48) && defined(STM32H5_USE_CLK48)
 #  if STM32H5_CLKUSB_SEL == RCC_CCIPR4_USBSEL_HSI48KERCK
-#    define STM32H5_USE_HSI48
+#    define STM32H5_USE_HSI48 1
 #  endif
 #endif
 
@@ -130,18 +131,15 @@ static inline void rcc_enableahb1(void)
   regval |= RCC_AHB1ENR_RAMCFGEN;
 #endif
 
-#ifdef CONFIG_STM32H5_ETH
+#ifdef CONFIG_STM32H5_ETHMAC
   /* ETH clock enable */
 
   regval |= RCC_AHB1ENR_ETHEN;
-#endif
-#ifdef CONFIG_STM32H5_ETHTX
+
   /* ETH TX clock enable */
 
   regval |= RCC_AHB1ENR_ETHTXEN;
-#endif
 
-#ifdef CONFIG_STM32H5_ETHRX
   /* ETH RX clock enable */
 
   regval |= RCC_AHB1ENR_ETHRXEN;
@@ -355,60 +353,6 @@ static inline void rcc_enableapb1l(void)
 
   regval = getreg32(STM32_RCC_APB1LENR);
 
-#ifdef CONFIG_STM32H5_TIM2
-  /* Bit 0:  TIM2 clock enable */
-
-  regval |= RCC_APB1LENR_TIM2EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM3
-  /* Bit 1:  TIM3 clock enable */
-
-  regval |= RCC_APB1LENR_TIM3EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM4
-  /* Bit 2:  TIM4 clock enable */
-
-  regval |= RCC_APB1LENR_TIM4EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM5
-  /* Bit 3:  TIM5 clock enable */
-
-  regval |= RCC_APB1LENR_TIM5EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM6
-  /* Bit 4:  TIM6 clock enable */
-
-  regval |= RCC_APB1LENR_TIM6EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM7
-  /* Bit 5:  TIM7 clock enable */
-
-  regval |= RCC_APB1LENR_TIM7EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM12
-  /* Bit 5:  TIM12 clock enable */
-
-  regval |= RCC_APB1LENR_TIM12EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM13
-  /* Bit 5:  TIM13 clock enable */
-
-  regval |= RCC_APB1LENR_TIM13EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM14
-  /* Bit 5:  TIM14 clock enable */
-
-  regval |= RCC_APB1LENR_TIM14EN;
-#endif
-
 #ifdef CONFIG_STM32H5_SPI2
   /* Bit 14: SPI2 clock enable */
 
@@ -588,46 +532,16 @@ static inline void rcc_enableapb2(void)
 
   regval = getreg32(STM32_RCC_APB2ENR);
 
-#ifdef CONFIG_STM32H5_TIM1
-  /* TIM1 clock enable */
-
-  regval |= RCC_APB2ENR_TIM1EN;
-#endif
-
 #ifdef CONFIG_STM32H5_SPI1
   /* SPI1 clock enable */
 
   regval |= RCC_APB2ENR_SPI1EN;
 #endif
 
-#ifdef CONFIG_STM32H5_TIM8
-  /* TIM8 clock enable */
-
-  regval |= RCC_APB2ENR_TIM8EN;
-#endif
-
 #ifdef CONFIG_STM32H5_USART1
   /* USART1 clock enable */
 
   regval |= RCC_APB2ENR_USART1EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM15
-  /* TIM15 clock enable */
-
-  regval |= RCC_APB2ENR_TIM15EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM16
-  /* TIM16 clock enable */
-
-  regval |= RCC_APB2ENR_TIM16EN;
-#endif
-
-#ifdef CONFIG_STM32H5_TIM17
-  /* TIM17 clock enable */
-
-  regval |= RCC_APB2ENR_TIM17EN;
 #endif
 
 #ifdef CONFIG_STM32H5_SPI4
@@ -654,7 +568,7 @@ static inline void rcc_enableapb2(void)
   regval |= RCC_APB2ENR_SAI2EN;
 #endif
 
-#ifdef CONFIG_STM32H5_USB
+#ifdef CONFIG_STM32H5_USBFS
   /* USB clock enable */
 
   regval |= RCC_APB2ENR_USBEN;
@@ -681,7 +595,7 @@ static inline void rcc_enableapb3(void)
 
   regval = getreg32(STM32_RCC_APB3ENR);
 
-#ifdef CONFIG_STM32H5_SBS
+#if defined(CONFIG_STM32H5_SBS) || defined(CONFIG_STM32H5_ETHMAC)
   /* Bit 1: SBS clock enable */
 
   regval |= RCC_APB3ENR_SBSEN;
@@ -1195,6 +1109,85 @@ void stm32_stdclockconfig(void)
         }
 
 #endif /* STM32_USE_LSE */
+
+      /* Configure ADC source clock */
+
+#if defined(STM32_RCC_CCIPR5_ADCDACSEL)
+      regval = getreg32(STM32_RCC_CCIPR5);
+      regval &= ~RCC_CCIPR5_ADCDACSEL_MASK;
+      regval |= STM32_RCC_CCIPR5_ADCDACSEL;
+      putreg32(regval, STM32_RCC_CCIPR5);
+#endif
+
+      /* Configure OCTOSPI1 source clock */
+
+#if defined(STM32_RCC_CCIPR4_OCTOSPI1SEL)
+      regval = getreg32(STM32_RCC_CCIPR4);
+      regval &= ~RCC_CCIPR4_OCTOSPI1SEL_MASK;
+      regval |= STM32_RCC_CCIPR4_OCTOSPI1SEL;
+      putreg32(regval, STM32_RCC_CCIPR4);
+#endif
+
+      /* Configure SPI1 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI1SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI1SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI1SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+      /* Configure SPI2 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI2SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI2SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI2SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+      /* Configure SPI3 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI3SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI3SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI3SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+      /* Configure SPI4 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI4SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI4SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI4SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+      /* Configure SPI5 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI5SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI5SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI5SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+      /* Configure SPI6 source clock */
+
+#if defined(STM32_RCC_CCIPR3_SPI6SEL)
+      regval = getreg32(STM32_RCC_CCIPR3);
+      regval &= ~RCC_CCIPR3_SPI6SEL_MASK;
+      regval |= STM32_RCC_CCIPR3_SPI6SEL;
+      putreg32(regval, STM32_RCC_CCIPR3);
+#endif
+
+#if defined(STM32H5_CLKUSB_SEL)
+      regval = getreg32(STM32_RCC_CCIPR4);
+      regval &= ~RCC_CCIPR4_USBSEL_MASK;
+      regval |= STM32H5_CLKUSB_SEL;
+      putreg32(regval, STM32_RCC_CCIPR4);
+#endif
     }
 }
 #endif

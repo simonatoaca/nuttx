@@ -53,6 +53,13 @@ function(nuttx_add_library_internal target)
     ${target}
     PRIVATE $<GENEX_EVAL:$<TARGET_PROPERTY:nuttx,NUTTX_INCLUDE_DIRECTORIES>>)
 
+  # add extra flags into command line
+
+  if(DEFINED EXTRAFLAGS)
+    string(REPLACE " " ";" eflags "${EXTRAFLAGS}")
+    target_compile_options(${target} PRIVATE ${eflags})
+  endif()
+
   # Set install config for all library
   install(TARGETS ${target})
 endfunction()
@@ -183,7 +190,22 @@ function(nuttx_add_library target)
   add_library(${target} ${ARGN})
   add_dependencies(${target} apps_context)
   set_property(GLOBAL APPEND PROPERTY NUTTX_SYSTEM_LIBRARIES ${target})
-
+  # Set apps global compile options & definitions hold by nuttx_apps_interface
+  target_compile_options(
+    ${target}
+    PRIVATE
+      $<GENEX_EVAL:$<TARGET_PROPERTY:nuttx_apps_interface,APPS_COMPILE_OPTIONS>>
+  )
+  target_compile_definitions(
+    ${target}
+    PRIVATE
+      $<GENEX_EVAL:$<TARGET_PROPERTY:nuttx_apps_interface,APPS_COMPILE_DEFINITIONS>>
+  )
+  target_include_directories(
+    ${target}
+    PRIVATE
+      $<GENEX_EVAL:$<TARGET_PROPERTY:nuttx_apps_interface,APPS_INCLUDE_DIRECTORIES>>
+  )
   nuttx_add_library_internal(${target})
 endfunction()
 

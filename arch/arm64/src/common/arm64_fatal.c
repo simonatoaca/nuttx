@@ -1,6 +1,8 @@
 /****************************************************************************
  * arch/arm64/src/common/arm64_fatal.c
  *
+ * SPDX-License-Identifier: Apache-2.0
+ *
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
  * this work for additional information regarding copyright ownership.  The
@@ -44,7 +46,6 @@
 #include "arm64_internal.h"
 #include "arm64_fatal.h"
 #include "arm64_mmu.h"
-#include "arm64_fatal.h"
 #include "arm64_arch_timer.h"
 
 #ifdef CONFIG_ARCH_FPU
