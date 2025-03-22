@@ -44,12 +44,16 @@
 #  include "esp32s3_board_tim.h"
 #endif
 
-#ifdef CONFIG_ESP32S3_WIFI
+#ifdef CONFIG_ESPRESSIF_WIFI
 #  include "esp32s3_board_wlan.h"
 #endif
 
-#ifdef CONFIG_ESP32S3_BLE
+#ifdef CONFIG_ESPRESSIF_BLE
 #  include "esp32s3_ble.h"
+#endif
+
+#ifdef CONFIG_ESPRESSIF_WIFI_BT_COEXIST
+#  include "esp32s3_wifi_adapter.h"
 #endif
 
 #ifdef CONFIG_WATCHDOG
@@ -185,9 +189,18 @@ int esp32s3_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESP32S3_WIRELESS
 
-#ifdef CONFIG_ESP32S3_BLE
+#ifdef CONFIG_ESPRESSIF_WIRELESS
+
+#ifdef CONFIG_ESPRESSIF_WIFI_BT_COEXIST
+  ret = esp_wifi_bt_coexist_init();
+  if (ret)
+    {
+      syslog(LOG_ERR, "ERROR: Failed to initialize Wi-Fi and BT coexist\n");
+    }
+#endif
+
+#ifdef CONFIG_ESPRESSIF_BLE
   ret = esp32s3_ble_initialize();
   if (ret)
     {
@@ -195,7 +208,7 @@ int esp32s3_bringup(void)
     }
 #endif
 
-#ifdef CONFIG_ESP32S3_WIFI
+#ifdef CONFIG_ESPRESSIF_WIFI
   ret = board_wlan_init();
   if (ret < 0)
     {
