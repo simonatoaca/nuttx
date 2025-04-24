@@ -75,6 +75,10 @@
 #include "soc/soc_caps.h"
 #include "private/esp_coexist_internal.h"
 
+#ifdef CONFIG_PM
+#include "esp32s3_pm.h"
+#endif
+
 #include "esp32s3_ble_adapter.h"
 
 /****************************************************************************
@@ -2324,7 +2328,7 @@ static void esp_update_time(struct timespec *timespec, uint32_t ticks)
 static void IRAM_ATTR btdm_slp_tmr_callback(void *arg)
 {
 #ifdef CONFIG_PM
-  btdm_vnd_offload_post(BTDM_VND_OL_SIG_WAKEUP_TMR,
+  r_btdm_vnd_offload_post(BTDM_VND_OL_SIG_WAKEUP_TMR,
                         (void *)BTDM_ASYNC_WAKEUP_SRC_TMR);
 #endif
 }
