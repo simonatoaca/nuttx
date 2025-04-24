@@ -39,6 +39,18 @@
 #include <nuttx/lcd/lcd.h>
 #include <nuttx/lcd/gc9a01.h>
 
+
+#ifdef CONFIG_PM
+#include <nuttx/power/pm.h>
+#include <nuttx/timers/timer.h>
+#include <nuttx/timers/watchdog.h>
+
+#ifndef container_of
+#  define container_of(ptr, type, member) \
+    ((type *)((void *)(ptr) - offsetof(type, member)))
+#endif
+#endif /* CONFIG_PM */
+
 #include "gc9a01.h"
 
 #ifdef CONFIG_LCD_GC9A01
@@ -155,6 +167,12 @@ struct gc9a01_dev_s
   uint8_t bpp;                /* Selected color depth */
   uint8_t power;              /* Current power setting */
 
+#ifdef CONFIG_PM
+  struct pm_callback_s pm_cb;
+  struct wdog_s wd_timer;
+  enum pm_state_e pm_state;
+#endif /* CONFIG_PM */
+
   /* This is working memory allocated by the LCD driver for each LCD device
    * and for each color plane. This memory will hold one raster line of data.
    * The size of the allocated run buffer must therefore be at least
@@ -213,6 +231,11 @@ static int gc9a01_getrun(FAR struct lcd_dev_s *dev,
                          fb_coord_t row, fb_coord_t col,
                          FAR uint8_t *buffer, size_t npixels);
 #endif
+#ifdef CONFIG_PM
+static void gc9a01_pm_setpower(wdparm_t arg);
+static void gc9a01_pm_notify(FAR struct pm_callback_s *cb, int domain,
+                               enum pm_state_e pmstate);
+#endif /* CONFIG_PM */
 
 /* LCD Configuration */
 
@@ -414,7 +437,7 @@ static void gc9a01_init(FAR struct gc9a01_dev_s *dev)
 static void gc9a01_sleep(FAR struct gc9a01_dev_s *dev, bool sleep)
 {
   gc9a01_sendcmd(dev, sleep ? GC9A01_SLPIN : GC9A01_SLPOUT);
-  up_mdelay(120);
+  // up_mdelay(120);
 }
 
 /****************************************************************************
@@ -808,6 +831,7 @@ static int gc9a01_setpower(FAR struct lcd_dev_s *dev, int power)
     {
       /* Turn on the display */
 
+      gc9a01_sleep(priv, false);
       gc9a01_display(priv, true);
 
       /* Save the power */
@@ -818,6 +842,7 @@ static int gc9a01_setpower(FAR struct lcd_dev_s *dev, int power)
     {
       /* Turn off the display */
 
+      gc9a01_sleep(priv, true);
       gc9a01_display(priv, false);
 
       /* Save the power */
@@ -856,6 +881,43 @@ static int gc9a01_setcontrast(FAR struct lcd_dev_s *dev,
   lcdinfo("contrast: %d\n", contrast);
   return -ENOSYS;
 }
+
+#ifdef CONFIG_PM
+static void gc9a01_pm_setpower(wdparm_t arg)
+{
+  FAR struct gc9a01_dev_s *priv = (FAR struct gc9a01_dev_s *)arg;
+  int desired_power = 0;
+
+  if (PM_NORMAL == priv->pm_state)
+    {
+      desired_power = 1;
+    }
+
+  priv->dev.setpower(&priv->dev, desired_power);
+}
+
+static void gc9a01_pm_notify(FAR struct pm_callback_s *cb, int domain,
+                               enum pm_state_e pmstate)
+{
+  FAR struct gc9a01_dev_s *priv = &g_lcddev;
+
+  if (pmstate == priv->pm_state) {
+    return;
+  }
+
+  if (PM_RESTORE != pmstate) {
+    priv->pm_state = pmstate;
+  } else {
+    // wd_cancel(&priv->wd_timer);
+  }
+
+  /* Turn on/off the screen */
+
+  // wd_start(&priv->wd_timer, MSEC2TICK((priv->pm_state == PM_NORMAL) ? 0 : 200),
+  //           gc9a01_pm_setpower, (wdparm_t)priv);
+  gc9a01_pm_setpower(priv);
+}
+#endif /* CONFIG_PM */
 
 /****************************************************************************
  * Public Functions
@@ -898,6 +960,12 @@ FAR struct lcd_dev_s *gc9a01_lcdinitialize(FAR struct spi_dev_s *spi)
   gc9a01_setorientation(priv);
   gc9a01_display(priv, true);
   gc9a01_fill(priv, 0xffff);
+
+#ifdef CONFIG_PM
+  priv->pm_cb.notify  = gc9a01_pm_notify;
+
+  pm_domain_register(PM_IDLE_DOMAIN, &priv->pm_cb);
+#endif /* CONFIG_PM */
 
   return &priv->dev;
 }

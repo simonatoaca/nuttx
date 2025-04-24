@@ -128,17 +128,20 @@ static void up_idlepm(void)
       switch (newstate)
         {
         case PM_NORMAL:
+          // board_lcd_setpower_on();
           break;
 
         case PM_IDLE:
+          // board_lcd_setpower_off();
           break;
 
         case PM_STANDBY:
           {
             /* Enter Force-sleep mode */
 
-            esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-                              CONFIG_PM_ALARM_NSEC / 1000);
+            // esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
+            //                   CONFIG_PM_ALARM_NSEC / 1000);
+            // board_lcd_setpower_off();
           }
           break;
 
@@ -146,8 +149,9 @@ static void up_idlepm(void)
           {
             /* Enter Deep-sleep mode */
 
-            esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
-                            CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+            // esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
+            //                 CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+            // board_lcd_setpower_off();
           }
 
         default:
@@ -165,6 +169,45 @@ static void up_idlepm(void)
 }
 #else
 #  define up_idlepm()
+#endif
+
+#ifdef CONFIG_PM
+static void esp32s3_pm_handler(enum pm_state_e systemstate)
+{
+  switch (systemstate)
+  {
+  case PM_NORMAL:
+    #  if XCHAL_HAVE_INTERRUPTS
+    __asm__ __volatile__ ("waiti 0");
+    #  endif
+    break;
+
+  case PM_IDLE:
+    esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
+                        CONFIG_PM_ALARM_NSEC / 1000);
+    break;
+
+  case PM_STANDBY:
+    {
+      /* Enter Force-sleep mode */
+
+      // esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
+      //                   CONFIG_PM_ALARM_NSEC / 1000);
+    }
+    break;
+
+  case PM_SLEEP:
+    {
+      /* Enter Deep-sleep mode */
+
+      // esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
+      //                 CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+    }
+
+  default:
+    break;
+  }
+}
 #endif
 
 /****************************************************************************
@@ -212,13 +255,16 @@ void up_idle(void)
        * power.
        */
 
-#  if XCHAL_HAVE_INTERRUPTS
-      __asm__ __volatile__ ("waiti 0");
-#  endif
-
   /* Perform IDLE mode power management */
 
-  up_idlepm();
+#ifdef CONFIG_PM
+  pm_idle(esp32s3_pm_handler);
+#else
+#  if XCHAL_HAVE_INTERRUPTS
+  __asm__ __volatile__ ("waiti 0");
+#  endif
+#endif
+
 #endif /* CONFIG_SUPPRESS_INTERRUPTS || CONFIG_SUPPRESS_TIMER_INTS */
 
 #ifdef CONFIG_ESP32S3_SPEED_UP_ISR
