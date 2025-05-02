@@ -232,7 +232,7 @@ static int gc9a01_getrun(FAR struct lcd_dev_s *dev,
                          FAR uint8_t *buffer, size_t npixels);
 #endif
 #ifdef CONFIG_PM
-static void gc9a01_pm_setpower(wdparm_t arg);
+static void gc9a01_pm_setpower(void *arg);
 static void gc9a01_pm_notify(FAR struct pm_callback_s *cb, int domain,
                                enum pm_state_e pmstate);
 #endif /* CONFIG_PM */
@@ -883,7 +883,7 @@ static int gc9a01_setcontrast(FAR struct lcd_dev_s *dev,
 }
 
 #ifdef CONFIG_PM
-static void gc9a01_pm_setpower(wdparm_t arg)
+static void gc9a01_pm_setpower(void *arg)
 {
   FAR struct gc9a01_dev_s *priv = (FAR struct gc9a01_dev_s *)arg;
   int desired_power = 0;
@@ -955,11 +955,11 @@ FAR struct lcd_dev_s *gc9a01_lcdinitialize(FAR struct spi_dev_s *spi)
   /* Init the hardware and clear the display */
 
   gc9a01_init(priv);
-  gc9a01_sleep(priv, false);
+  gc9a01_sleep(priv, true);
   gc9a01_bpp(priv, GC9A01_BPP);
   gc9a01_setorientation(priv);
-  gc9a01_display(priv, true);
-  gc9a01_fill(priv, 0xffff);
+  gc9a01_display(priv, false);
+  gc9a01_fill(priv, 0x0000);
 
 #ifdef CONFIG_PM
   priv->pm_cb.notify  = gc9a01_pm_notify;
