@@ -44,8 +44,15 @@
 #include <nuttx/kthread.h>
 #include <nuttx/signal.h>
 #include <nuttx/fs/fs.h>
-
 #include <nuttx/i2c/i2c_master.h>
+
+#ifdef CONFIG_PM
+#define RTC_BSS_ATTR __attribute__((section(".rtc.bss")))
+#else
+#define RTC_BSS_ATTR
+#endif
+
+#define MAGIC_NUMBER (0x41)
 
 #if defined(CONFIG_I2C) && defined(CONFIG_FF_DRV2605L)
 
@@ -284,6 +291,8 @@ static void drv2605l_timer_func(wdparm_t arg);
 /****************************************************************************
  * Private Data
  ****************************************************************************/
+
+RTC_BSS_ATTR static uint8_t init;
 
 /****************************************************************************
  * Private Functions
@@ -839,6 +848,15 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
 #endif /* CONFIG_DRV2605L_LRA_ACTUATOR */
     }
 
+  /**
+   *  Following a wake-up from Deep Sleep,
+   *  avoid useless re-calibration.
+   */
+  if (init == MAGIC_NUMBER)
+    {
+      return OK;
+    }
+
   nxmutex_lock(&priv->dev_lock);
   priv->calib = calib_data;
 
@@ -921,6 +939,8 @@ static int drv2605l_auto_calib(FAR struct drv2605l_dev_s *priv,
   priv->calib->diag_result = (regval & DRV2605L_DIAG_RESULT_MSK) >> 3;
 
   nxmutex_unlock(&priv->dev_lock);
+
+  init = MAGIC_NUMBER;
 
   return ret;
 }
