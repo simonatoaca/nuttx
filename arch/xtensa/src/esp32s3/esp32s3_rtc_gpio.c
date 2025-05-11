@@ -96,6 +96,11 @@ static const uint32_t rtc_gpio_to_addr[] =
 /****************************************************************************
  * Private Functions
  ****************************************************************************/
+void rtcio_ext0_set_wakeup_pin(uint32_t rtcio_num, int level)
+{
+  REG_SET_FIELD(RTCIO_EXT_WAKEUP0_REG, RTCIO_EXT_WAKEUP0_SEL, rtcio_num);
+  REG_SET_FIELD(RTC_CNTL_RTC_EXT_WAKEUP_CONF_REG, RTC_CNTL_EXT_WAKEUP0_LV, level);
+}
 
 /****************************************************************************
  * Name: is_valid_rtc_gpio
@@ -269,6 +274,18 @@ int esp32s3_configrtcio(int rtcio_num, rtcio_pinattr_t attr)
       /* Input enable */
 
       setbits(rtc_reg_desc.reg, rtc_reg_desc.ie);
+      setbits(rtc_reg_desc.reg, rtc_reg_desc.slpie);
+      setbits(rtc_reg_desc.reg, rtc_reg_desc.slpsel);
+
+      /* Configure type of interrupt: Rising edge */
+
+      REG_SET_FIELD(rtc_gpio_to_addr[rtcio_num],
+                    RTCIO_GPIO_PIN0_INT_TYPE, 1);
+
+      /* Set as wakeup source from Deep Sleep */
+
+      REG_SET_FIELD(rtc_gpio_to_addr[rtcio_num],
+                    RTCIO_GPIO_PIN0_WAKEUP_ENABLE, 1);
 
       if ((attr & RTC_PULLUP) != 0)
         {
