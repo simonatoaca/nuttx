@@ -375,6 +375,7 @@ static uint32_t IRAM_ATTR esp32s3_get_power_down_flags(void)
   uint32_t pd_flags = 0;
 
   g_config.pd_options[ESP_PD_DOMAIN_RTC_FAST_MEM] = ESP_PD_OPTION_ON;
+  // g_config.pd_options[ESP_PD_DOMAIN_RTC_SLOW_MEM] = ESP_PD_OPTION_ON;
 
   if (g_config.pd_options[ESP_PD_DOMAIN_RTC_PERIPH] == ESP_PD_OPTION_AUTO)
     {
@@ -886,6 +887,22 @@ void IRAM_ATTR esp32s3_sleep_enable_timer_wakeup(uint64_t time_in_us)
 }
 
 /****************************************************************************
+ * Name:  esp32s3_sleep_enable_gpio_wakeup
+ *
+ * Description:
+ *   Enable wakeup by gpio
+ *
+ * Returned Value:
+ *   None
+ *
+ ****************************************************************************/
+
+void IRAM_ATTR esp32s3_sleep_enable_gpio_wakeup(void)
+{
+  g_config.wakeup_triggers |= RTC_GPIO_TRIG_EN;
+}
+
+/****************************************************************************
  * Name:  esp32s3_sleep_enable_wifi_wakeup
  *
  * Description:
@@ -1027,6 +1044,8 @@ void esp32s3_pmstandby(uint64_t time_in_us)
 
   /* Don't power down XTAL - powering it up takes different time on. */
 
+  esp32s3_sleep_enable_gpio_wakeup();
+  // esp32s3_sleep_enable_wifi_wakeup();
   esp32s3_sleep_enable_timer_wakeup(time_in_us);
   esp32s3_light_sleep_start(&rtc_diff_us);
   pwrinfo("Returned from auto-sleep, slept for %" PRIu32 " ms\n",
@@ -1094,6 +1113,7 @@ void IRAM_ATTR esp32s3_deep_sleep_start(void)
 
 void esp32s3_pmsleep(uint64_t time_in_us)
 {
+  esp32s3_sleep_enable_gpio_wakeup();
   esp32s3_sleep_enable_timer_wakeup(time_in_us);
   esp32s3_deep_sleep_start();
 }
