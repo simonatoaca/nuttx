@@ -88,7 +88,9 @@ struct btn_data_s
   {
     uint32_t pin;
     gpio_pinattr_t attr;
+#ifdef CONFIG_PM
     rtcio_pinattr_t rtc_attr;
+#endif
   };
 
 /****************************************************************************
@@ -97,9 +99,21 @@ struct btn_data_s
 
 static struct btn_data_s buttons[] =
   {
-    {.pin = BUTTON_BOOT, .attr = INPUT_FUNCTION_2 | PULLUP, .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP},
-    {.pin = BUTTON_UP, .attr = INPUT_FUNCTION_2 | PULLUP, .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP},
-    {.pin = BUTTON_DOWN, .attr = INPUT_FUNCTION_2 | PULLUP, .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP},
+    {.pin = BUTTON_BOOT, .attr = INPUT_FUNCTION_2 | PULLUP,
+#ifdef CONFIG_PM
+      .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP
+#endif
+    },
+    {.pin = BUTTON_UP, .attr = INPUT_FUNCTION_2 | PULLUP,
+#ifdef CONFIG_PM
+      .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP
+#endif
+    },
+    {.pin = BUTTON_DOWN, .attr = INPUT_FUNCTION_2 | PULLUP,
+#ifdef CONFIG_PM
+      .rtc_attr = RTC_FUNCTION_RTCIO | RTC_INPUT_PULLUP
+#endif
+    },
   };
 
 /****************************************************************************
