@@ -218,6 +218,7 @@ static struct esp32s3_sleep_config_s g_config =
 };
 
 static _Atomic uint32_t pm_wakelock = 0;
+static uint64_t light_sleep_us = 0;
 
 /* Inform peripherals of light sleep wakeup overhead time */
 
@@ -1048,6 +1049,7 @@ void esp32s3_pmstandby(uint64_t time_in_us)
   // esp32s3_sleep_enable_wifi_wakeup();
   esp32s3_sleep_enable_timer_wakeup(time_in_us);
   esp32s3_light_sleep_start(&rtc_diff_us);
+  light_sleep_us += rtc_diff_us;
   pwrinfo("Returned from auto-sleep, slept for %" PRIu32 " ms\n",
             (uint32_t)(rtc_diff_us) / 1000);
 }
@@ -1173,6 +1175,16 @@ void IRAM_ATTR esp32s3_pm_lockrelease(void)
 uint32_t IRAM_ATTR esp32s3_pm_lockstatus(void)
 {
   return pm_wakelock;
+}
+
+uint64_t get_light_sleep_ms(void)
+{
+  return (light_sleep_us / 1000);
+}
+
+void reset_light_sleep_ms(void)
+{
+  light_sleep_us = 0;
 }
 
 #endif /* CONFIG_PM */

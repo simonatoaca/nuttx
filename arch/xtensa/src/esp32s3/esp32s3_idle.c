@@ -61,6 +61,8 @@
 #  define CONFIG_PM_SLEEP_WAKEUP_NSEC 0
 #endif
 
+#define DEEP_SLEEP_THRESH_MS (10000)
+
 #endif
 
 /****************************************************************************
@@ -69,6 +71,7 @@
 
 #ifdef CONFIG_PM
 static spinlock_t g_esp32s3_idle_lock = SP_UNLOCKED;
+static int light_sleep_incr = 0;
 #endif
 
 /****************************************************************************
@@ -177,32 +180,32 @@ static void esp32s3_pm_handler(enum pm_state_e systemstate)
   switch (systemstate)
   {
   case PM_NORMAL:
-    #  if XCHAL_HAVE_INTERRUPTS
-    __asm__ __volatile__ ("waiti 0");
-    #  endif
+    reset_light_sleep_ms();
+    esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
+                      300000 / 1000);
     break;
 
   case PM_IDLE:
-    esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-                        CONFIG_PM_ALARM_NSEC / 1000);
-    break;
+      if (get_light_sleep_ms() < DEEP_SLEEP_THRESH_MS)
+        {
+          esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
+                            600000 / 1000); // be careful
+        }
+      else
+        {
+          esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
+                          CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+        }
 
+    break;
   case PM_STANDBY:
-    {
-      /* Enter Force-sleep mode */
-
-      // esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-      //                   CONFIG_PM_ALARM_NSEC / 1000);
-    }
-    break;
-
   case PM_SLEEP:
     {
-      /* Enter Deep-sleep mode */
-
-      // esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
-      //                 CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+    /* Enter Force-sleep mode */
+      esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
+                      CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
     }
+    break;
 
   default:
     break;

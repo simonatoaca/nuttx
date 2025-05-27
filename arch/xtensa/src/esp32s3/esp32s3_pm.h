@@ -291,6 +291,10 @@ int esp32s3_pm_register_skip_sleep_callback(skip_light_sleep_cb_t cb);
 
 int esp32s3_pm_unregister_skip_sleep_callback(skip_light_sleep_cb_t cb);
 
+
+uint64_t get_light_sleep_ms(void);
+void reset_light_sleep_ms(void);
+
 #endif /* CONFIG_PM */
 
 #ifdef __cplusplus
