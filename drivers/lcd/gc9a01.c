@@ -907,14 +907,10 @@ static void gc9a01_pm_notify(FAR struct pm_callback_s *cb, int domain,
 
   if (PM_RESTORE != pmstate) {
     priv->pm_state = pmstate;
-  } else {
-    // wd_cancel(&priv->wd_timer);
   }
 
   /* Turn on/off the screen */
 
-  // wd_start(&priv->wd_timer, MSEC2TICK((priv->pm_state == PM_NORMAL) ? 0 : 200),
-  //           gc9a01_pm_setpower, (wdparm_t)priv);
   gc9a01_pm_setpower(priv);
 }
 #endif /* CONFIG_PM */
@@ -955,11 +951,20 @@ FAR struct lcd_dev_s *gc9a01_lcdinitialize(FAR struct spi_dev_s *spi)
   /* Init the hardware and clear the display */
 
   gc9a01_init(priv);
+#ifdef CONFIG_PM
   gc9a01_sleep(priv, true);
+#else
+  gc9a01_sleep(priv, false);
+#endif /* CONFIG_PM */
   gc9a01_bpp(priv, GC9A01_BPP);
   gc9a01_setorientation(priv);
+#ifdef CONFIG_PM
   gc9a01_display(priv, false);
   gc9a01_fill(priv, 0x0000);
+#else
+  gc9a01_display(priv, true);
+  gc9a01_fill(priv, 0xffff);
+#endif /* CONFIG_PM */
 
 #ifdef CONFIG_PM
   priv->pm_cb.notify  = gc9a01_pm_notify;
