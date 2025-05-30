@@ -100,25 +100,29 @@
 #  include "esp32s3_board_wdt.h"
 #endif
 
+#ifdef CONFIG_SENSORS_BMI085
+# include <nuttx/sensors/bmi085.h>
+#endif
+
 #include "esp32s3-hacktorwatch.h"
 
 /****************************************************************************
- * Public Functions
- ****************************************************************************/
+* Public Functions
+****************************************************************************/
 
 /****************************************************************************
- * Name: esp32s3_bringup
- *
- * Description:
- *   Perform architecture-specific initialization
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=y :
- *     Called from board_late_initialize().
- *
- *   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
- *     Called from the NSH library
- *
- ****************************************************************************/
+* Name: esp32s3_bringup
+*
+* Description:
+*   Perform architecture-specific initialization
+*
+*   CONFIG_BOARD_LATE_INITIALIZE=y :
+*     Called from board_late_initialize().
+*
+*   CONFIG_BOARD_LATE_INITIALIZE=n && CONFIG_BOARDCTL=y :
+*     Called from the NSH library
+*
+****************************************************************************/
 
 int esp32s3_bringup(void)
 {
@@ -193,7 +197,7 @@ int esp32s3_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize partition error=%d\n",
-             ret);
+            ret);
     }
 #endif
 
@@ -224,6 +228,27 @@ int esp32s3_bringup(void)
     {
       syslog(LOG_ERR, "Failed to initialize watchdog timer: %d\n", ret);
     }
+#endif
+
+#ifdef CONFIG_I2C_DRIVER
+  /* Configure I2C peripheral interfaces */
+
+  ret = board_i2c_init();
+  if (ret < 0)
+    {
+      syslog(LOG_ERR, "Failed to initialize I2C driver: %d\n", ret);
+    }
+#endif
+
+#ifdef CONFIG_SENSORS_BMI085
+  /* Configure BMI085 driver */
+
+  ret = esp32s3_bmi085_initialize(ESP32S3_I2C0);
+  if (ret < 0)
+  {
+    syslog(LOG_ERR,
+          "Failed to initialize BMI085 driver for I2C0: %d\n", ret);
+  }
 #endif
 
 #ifdef CONFIG_INPUT_BUTTONS
@@ -267,7 +292,7 @@ int esp32s3_bringup(void)
   if (ret < 0)
     {
       syslog(LOG_ERR, "ERROR: Failed to initialize wireless subsystem=%d\n",
-             ret);
+            ret);
     }
 #endif
 
@@ -303,9 +328,9 @@ int esp32s3_bringup(void)
 #endif /* CONFIG_FF_DRV2605L */
 
   /* If we got here then perhaps not all initialization was successful, but
-   * at least enough succeeded to bring-up NSH with perhaps reduced
-   * capabilities.
-   */
+  * at least enough succeeded to bring-up NSH with perhaps reduced
+  * capabilities.
+  */
 
   UNUSED(ret);
   return OK;

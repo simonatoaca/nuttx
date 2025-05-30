@@ -142,6 +142,18 @@ int board_i2c_init(void);
 int board_drv2605l_initialize(int devno, int busno);
 #endif
 
+/****************************************************************************
+ * Name: esp32s3_bmi085_initialize
+ *
+ * Description:
+ *   Initialize and register the BMI085 device.
+ *
+ ****************************************************************************/
+
+#ifdef CONFIG_SENSORS_BMI085
+int esp32s3_bmi085_initialize(int busno);
+#endif
+
 #endif /* __ASSEMBLY__ */
 #endif /* __BOARDS_XTENSA_ESP32S3_ESP32S3_HACKTORWATCH_SRC_ESP32S3_HACKTORWATCH_H */
 #
