@@ -277,15 +277,22 @@ int esp32s3_configrtcio(int rtcio_num, rtcio_pinattr_t attr)
       setbits(rtc_reg_desc.reg, rtc_reg_desc.slpie);
       setbits(rtc_reg_desc.reg, rtc_reg_desc.slpsel);
 
-      /* Configure type of interrupt: Rising edge */
+      /* Configure type of interrupt: LOW LEVEL FOR BUTTONS */
 
+      // REG_SET_FIELD(rtc_gpio_to_addr[rtcio_num],
+      //               RTCIO_GPIO_PIN0_INT_TYPE, 1);
       REG_SET_FIELD(rtc_gpio_to_addr[rtcio_num],
-                    RTCIO_GPIO_PIN0_INT_TYPE, 1);
+                    RTCIO_GPIO_PIN0_INT_TYPE, 4);
 
       /* Set as wakeup source from Deep Sleep */
 
       REG_SET_FIELD(rtc_gpio_to_addr[rtcio_num],
                     RTCIO_GPIO_PIN0_WAKEUP_ENABLE, 1);
+
+      // if (rtcio_num == 11)
+      //   {
+      //     modifyreg32(RTCIO_EXT_WAKEUP0_REG, 0, (1 << rtcio_num));
+      //   }
 
       if ((attr & RTC_PULLUP) != 0)
         {
@@ -381,10 +388,11 @@ int esp32s3_configrtcio(int rtcio_num, rtcio_pinattr_t attr)
   else
     {
       /* Drive strength not provided, assuming strength 2 by default */
+      /* Change to 1 */
 
       modifyreg32(rtc_reg_desc.reg,
         ((rtc_reg_desc.drv_v) << (rtc_reg_desc.drv_s)),
-        (((2) & rtc_reg_desc.drv_v) << (rtc_reg_desc.drv_s)));
+        (((1) & rtc_reg_desc.drv_v) << (rtc_reg_desc.drv_s)));
     }
 
   if ((attr & RTC_OPEN_DRAIN) != 0)

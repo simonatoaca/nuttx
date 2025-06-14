@@ -142,11 +142,6 @@ uint32_t board_button_initialize(void)
   for (uint32_t i = 0; i < btn_num; i++)
     {
 #ifdef CONFIG_PM
-      // if (buttons[i].pin == BUTTON_UP)
-      //   {
-      //     rtcio_ext0_set_wakeup_pin(buttons[i].pin, 1);
-      //   }
-
       if (buttons[i].pin < 22)
         {
           /** Config BOOT and UP buttons as sleep wakeup sources.

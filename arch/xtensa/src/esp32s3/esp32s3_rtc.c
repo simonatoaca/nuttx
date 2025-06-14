@@ -680,6 +680,7 @@ void IRAM_ATTR esp32s3_rtc_update_to_xtal(int freq, int div)
     {
       0
     };
+  freq = 80;
 
   esp32s3_rtc_clk_cpu_freq_get_config(&cur_config);
   ets_update_cpu_frequency(freq);
@@ -966,7 +967,7 @@ static void IRAM_ATTR esp32s3_rtc_clk_cpu_freq_to_pll_mhz(
    * otherwise, LDO voltage will increase.In order to reduce LDO voltage
    * drop, LDO voltage should rise first then fall.
    */
-
+  cpu_freq_mhz = 80;
   int pd_slave = cpu_freq_mhz / 80;
   struct esp32s3_cpu_freq_config_s cur_config =
     {
@@ -1622,13 +1623,17 @@ void IRAM_ATTR esp32s3_rtc_init(void)
 
   /* set wifi timer */
 
+#ifdef CONFIG_ESPRESSIF_WIFI
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_WIFI_POWERUP_TIMER, 1);
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_WIFI_WAIT_TIMER, 1);
+#endif
 
   /* set bt timer */
 
+#ifdef CONFIG_ESPRESSIF_BLE
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_BT_POWERUP_TIMER, 1);
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_BT_WAIT_TIMER, 1);
+#endif
 
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER6_REG, RTC_CNTL_CPU_TOP_POWERUP_TIMER, 1);
   REG_SET_FIELD(RTC_CNTL_RTC_TIMER6_REG, RTC_CNTL_CPU_TOP_WAIT_TIMER, 1);
@@ -2255,6 +2260,9 @@ void IRAM_ATTR esp32s3_rtc_sleep_init(uint32_t flags)
                   RTC_CNTL_WIFI_FORCE_ISO, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_FORCE_PU, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_WIFI_PD_EN);
+
+      modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_WIFI_FORCE_ISO);
+      modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_WIFI_FORCE_PD);
     }
   else
     {
@@ -2267,6 +2275,9 @@ void IRAM_ATTR esp32s3_rtc_sleep_init(uint32_t flags)
                   RTC_CNTL_BT_FORCE_ISO, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_FORCE_PU, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_BT_PD_EN);
+
+      modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_WIFI_FORCE_ISO);
+      modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_WIFI_FORCE_PD);
     }
   else
     {
@@ -2279,6 +2290,9 @@ void IRAM_ATTR esp32s3_rtc_sleep_init(uint32_t flags)
                   RTC_CNTL_CPU_TOP_FORCE_ISO, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_CPU_TOP_FORCE_PU,
                   RTC_CNTL_CPU_TOP_PD_EN);
+
+      // modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_CPU_TOP_FORCE_ISO);
+      // modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_CPU_TOP_FORCE_PD);
     }
   else
     {
@@ -2291,6 +2305,10 @@ void IRAM_ATTR esp32s3_rtc_sleep_init(uint32_t flags)
                   RTC_CNTL_DG_PERI_FORCE_ISO, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_DG_PERI_FORCE_PU,
                   RTC_CNTL_DG_PERI_PD_EN);
+
+
+      // modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_DG_PERI_FORCE_ISO); // don t do this
+      // modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_DG_PERI_FORCE_PD);
     }
   else
     {

@@ -145,7 +145,7 @@ static void gpio_dispatch(int irq, uint32_t status, uint32_t *regs)
  ****************************************************************************/
 
 #ifdef CONFIG_ESP32S3_GPIO_IRQ
-static int gpio_interrupt(int irq, void *context, void *arg)
+static IRAM_ATTR int gpio_interrupt(int irq, void *context, void *arg)
 {
   uint32_t status;
 
@@ -236,13 +236,20 @@ int esp32s3_configgpio(uint32_t pin, gpio_pinattr_t attr)
 
       func |= FUN_IE;
 
+      /* Sleep options */
+      cntrl |= (1 << GPIO_PIN0_WAKEUP_ENABLE_S);
+      func  |= SLP_IE;
+      func  |= SLP_SEL;
+
       if ((attr & PULLUP) != 0)
         {
           func |= FUN_PU;
+          func |= SLP_PU;
         }
       else if ((attr & PULLDOWN) != 0)
         {
           func |= FUN_PD;
+          func |= SLP_PD;
         }
     }
 
@@ -284,8 +291,9 @@ int esp32s3_configgpio(uint32_t pin, gpio_pinattr_t attr)
   else
     {
       /* Drive strength not provided, assuming strength 2 by default */
+      /* Change to 1 */
 
-      func |= UINT32_C(2) << FUN_DRV_S;
+      func |= UINT32_C(1) << FUN_DRV_S;
     }
 
   if ((attr & OPEN_DRAIN) != 0)
@@ -406,7 +414,7 @@ void esp32s3_gpioirqinitialize(void)
   cpu = this_cpu();
 
   g_gpio_cpuint = esp32s3_setup_irq(cpu, ESP32S3_PERIPH_GPIO_INT_CPU, 1,
-                                    ESP32S3_CPUINT_LEVEL);
+                                    ESP32S3_CPUINT_LEVEL | ESP32S3_CPUINT_FLAG_IRAM);
   DEBUGASSERT(g_gpio_cpuint >= 0);
 
   /* Attach and enable the interrupt handler */

@@ -683,7 +683,7 @@ static inline int32_t esp_errno_trans(int ret)
 
 static IRAM_ATTR void esp_bt_power_domain_on(void)
 {
-#if SOC_PM_SUPPORT_BT_PD
+#if SOC_PM_SUPPORT_MODEM_PD
   modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_FORCE_PD, 0);
   modifyreg32(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_BT_FORCE_ISO, 0);
 #endif
@@ -706,7 +706,7 @@ static IRAM_ATTR void esp_bt_power_domain_on(void)
 
 static IRAM_ATTR void esp_bt_power_domain_off(void)
 {
-#if SOC_PM_SUPPORT_BT_PD
+#if SOC_PM_SUPPORT_MODEM_PD
   modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_BT_FORCE_ISO);
   modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_BT_FORCE_PD);
 #endif
@@ -3350,7 +3350,7 @@ int esp32s3_bt_controller_disable(void)
 #ifdef CONFIG_PM
   if (g_lp_cntl.no_light_sleep)
     {
-      esp_pm_lock_release(g_light_sleep_pm_lock);
+      esp32s3_pm_lockrelease();
     }
 
   if (g_lp_stat.pm_lock_released == 0)

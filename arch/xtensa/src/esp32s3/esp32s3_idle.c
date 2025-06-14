@@ -46,7 +46,7 @@
 
 #ifdef CONFIG_PM
 #ifndef CONFIG_PM_ALARM_SEC
-#  define CONFIG_PM_ALARM_SEC 15
+#  define CONFIG_PM_ALARM_SEC 60
 #endif
 
 #ifndef CONFIG_PM_ALARM_NSEC
@@ -61,7 +61,7 @@
 #  define CONFIG_PM_SLEEP_WAKEUP_NSEC 0
 #endif
 
-#define DEEP_SLEEP_THRESH_MS (10000)
+#define DEEP_SLEEP_THRESH_MS (10000) // 1000 ms = 1 s
 
 #endif
 
@@ -78,102 +78,6 @@ static int light_sleep_incr = 0;
  * Private Functions
  ****************************************************************************/
 
-/****************************************************************************
- * Name: up_idlepm
- *
- * Description:
- *   Perform IDLE state power management.
- *
- ****************************************************************************/
-
-#ifdef CONFIG_PM
-static void up_idlepm(void)
-{
-  irqstate_t flags;
-  static enum pm_state_e oldstate = PM_NORMAL;
-  enum pm_state_e newstate;
-  int ret;
-
-  /* Decide, which power saving level can be obtained */
-
-  newstate = pm_checkstate(PM_IDLE_DOMAIN);
-
-  /* Check for state changes */
-
-  if (newstate != oldstate)
-    {
-      flags = spin_lock_irqsave(&g_esp32s3_idle_lock);
-
-      /* Perform board-specific, state-dependent logic here */
-
-      _info("newstate= %d oldstate=%d\n", newstate, oldstate);
-
-      /* Then force the global state change */
-
-      ret = pm_changestate(PM_IDLE_DOMAIN, newstate);
-      if (ret < 0)
-        {
-          /* The new state change failed, revert to the preceding state */
-
-          pm_changestate(PM_IDLE_DOMAIN, oldstate);
-        }
-      else
-        {
-          /* Save the new state */
-
-          oldstate = newstate;
-        }
-
-      spin_unlock_irqrestore(&g_esp32s3_idle_lock, flags);
-
-      /* MCU-specific power management logic */
-
-      switch (newstate)
-        {
-        case PM_NORMAL:
-          // board_lcd_setpower_on();
-          break;
-
-        case PM_IDLE:
-          // board_lcd_setpower_off();
-          break;
-
-        case PM_STANDBY:
-          {
-            /* Enter Force-sleep mode */
-
-            // esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-            //                   CONFIG_PM_ALARM_NSEC / 1000);
-            // board_lcd_setpower_off();
-          }
-          break;
-
-        case PM_SLEEP:
-          {
-            /* Enter Deep-sleep mode */
-
-            // esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
-            //                 CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
-            // board_lcd_setpower_off();
-          }
-
-        default:
-          break;
-        }
-    }
-  else
-    {
-#ifdef CONFIG_WATCHDOG
-      /* Announce the power management state change to feed watchdog */
-
-      pm_changestate(PM_IDLE_DOMAIN, PM_NORMAL);
-#endif
-    }
-}
-#else
-#  define up_idlepm()
-#endif
-
 #ifdef CONFIG_PM
 static void esp32s3_pm_handler(enum pm_state_e systemstate)
 {
@@ -181,19 +85,20 @@ static void esp32s3_pm_handler(enum pm_state_e systemstate)
   {
   case PM_NORMAL:
     reset_light_sleep_ms();
-    esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-                      300000 / 1000);
+    // esp32s3_pmstandby(200);
+#  if XCHAL_HAVE_INTERRUPTS
+  __asm__ __volatile__ ("waiti 0");
+#  endif
     break;
 
   case PM_IDLE:
       if (get_light_sleep_ms() < DEEP_SLEEP_THRESH_MS)
         {
-          esp32s3_pmstandby(CONFIG_PM_ALARM_SEC * 1000000 +
-                            600000 / 1000); // be careful
+          esp32s3_pmstandby(30 * 1000000); // be careful 600ms
         }
       else
         {
-          esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
+          esp32s3_pmsleep(120 * 1000000 +
                           CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
         }
 
