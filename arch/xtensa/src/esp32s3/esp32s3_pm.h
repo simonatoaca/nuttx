@@ -109,7 +109,7 @@ int esp32s3_light_sleep_start(uint64_t *sleep_time);
  *
  ****************************************************************************/
 
-void esp32s3_pmstandby(uint64_t time_in_us);
+void esp32s3_pmstandby(uint64_t time_in_us, bool bt_en);
 
 /****************************************************************************
  * Name:  esp32s3_deep_sleep_start

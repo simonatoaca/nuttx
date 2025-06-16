@@ -50,6 +50,7 @@
 
 #include "esp32s3_rtc.h"
 #include "esp32s3_pm.h"
+#include "esp32s3_ble_adapter.h"
 
 #include "soc/periph_defs.h"
 #include "hal/clk_gate_ll.h"
@@ -361,6 +362,25 @@ static void IRAM_ATTR esp32s3_resume_uarts(void)
     }
 }
 
+static void IRAM_ATTR esp32s3_resume_bt(void)
+{
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_PD_EN, 0);
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_FORCE_PD, 0);
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_PD_EN, 0);
+  modifyreg32(RTC_CNTL_DIG_ISO_REG, RTC_CNTL_BT_FORCE_ISO | RTC_CNTL_BT_FORCE_NOISO, 0);
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_WIFI_FORCE_ISO | RTC_CNTL_WIFI_FORCE_NOISO, 0);
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_WIFI_FORCE_PU);
+  modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_BT_FORCE_PU);
+  modifyreg32(RTC_CNTL_RTC_OPTIONS0_REG, 0, RTC_CNTL_XTL_FORCE_PU);
+
+  esp_wifi_bt_power_domain_on();
+
+#ifdef CONFIG_ESPRESSIF_BLE
+  REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_BT_POWERUP_TIMER, 1);
+  REG_SET_FIELD(RTC_CNTL_RTC_TIMER3_REG, RTC_CNTL_BT_WAIT_TIMER, 1);
+#endif
+}
+
 /****************************************************************************
  * Name:  esp32s3_get_power_down_flags
  *
@@ -398,6 +418,18 @@ static uint32_t IRAM_ATTR esp32s3_get_power_down_flags(void)
   g_config.pd_options[ESP_PD_DOMAIN_CPU] = ESP_PD_OPTION_ON;
   g_config.pd_options[ESP_PD_DOMAIN_VDDSDIO] = ESP_PD_OPTION_ON;
 
+  if (!(g_config.wakeup_triggers & RTC_BT_TRIG_EN))
+    {
+      g_config.pd_options[ESP_PD_DOMAIN_VDDSDIO] = ESP_PD_OPTION_OFF;
+      pd_flags |= RTC_SLEEP_PD_BT;      // Power Down BLE
+      pd_flags |= RTC_SLEEP_PD_WIFI;    // Power Down WiFi
+    }
+
+  if (g_config.pd_options[ESP_PD_DOMAIN_VDDSDIO] != ESP_PD_OPTION_ON)
+    {
+      pd_flags |= RTC_SLEEP_PD_VDDSDIO; // Power down Flash
+    }
+
   /* Prepare flags based on the selected options */
 
   if (g_config.pd_options[ESP_PD_DOMAIN_RTC_FAST_MEM] != ESP_PD_OPTION_ON)
@@ -429,12 +461,6 @@ static uint32_t IRAM_ATTR esp32s3_get_power_down_flags(void)
     {
       pd_flags |= RTC_SLEEP_PD_XTAL;
     }
-
-  pd_flags |= RTC_SLEEP_PD_VDDSDIO; // Power down Flash
-  pd_flags |= RTC_SLEEP_PD_BT;      // Power Down BLE
-  pd_flags |= RTC_SLEEP_PD_WIFI;    // Power Down WiFi
-  // pd_flags |= RTC_SLEEP_PD_DIG_PERIPH; // Digital peripherals
-  // pd_flags |= RTC_SLEEP_PD_DIG; // Digital Core -> signals Deep Sleep
 
   return pd_flags;
 }
@@ -665,6 +691,8 @@ static int IRAM_ATTR esp32s3_light_sleep_inner(uint32_t pd_flags,
       esp_rom_delay_us(time_us);
     }
 
+  /* Re-enable BT */
+  esp32s3_resume_bt();
   return err;
 }
 
@@ -927,14 +955,13 @@ void IRAM_ATTR esp32s3_sleep_enable_gpio_wakeup(void)
 
 void esp32s3_sleep_enable_wifi_wakeup(void)
 {
-  g_config.wakeup_triggers |= RTC_WIFI_TRIG_EN;
+  g_config.wakeup_triggers |= RTC_WIFI_TRIG_EN | RTC_BT_TRIG_EN;
 }
 
-void esp32s3_sleep_enable_bt_wakeup(void)
+void esp32s3_sleep_reset_wakeup(void)
 {
-  g_config.wakeup_triggers |= RTC_BT_TRIG_EN;;
+  g_config.wakeup_triggers = 0;
 }
-
 
 /****************************************************************************
  * Name:  esp32s3_light_sleep_start
@@ -1012,12 +1039,12 @@ int IRAM_ATTR esp32s3_light_sleep_start(uint64_t *sleep_time)
    *  sleep duration and min sleep duration to avoid late wakeup
    */
 
-  // if ((g_config.wakeup_triggers & RTC_TIMER_TRIG_EN) &&
-  //     (final_sleep_us <= min_sleep_us))
-  //   {
-  //     ret = ERROR;
-  //   }
-  // else
+  if ((g_config.wakeup_triggers & RTC_TIMER_TRIG_EN) &&
+      (final_sleep_us <= min_sleep_us))
+    {
+      ret = ERROR;
+    }
+  else
     {
       /* Enter sleep, then wait for flash to be ready on wakeup */
 
@@ -1053,14 +1080,18 @@ int IRAM_ATTR esp32s3_light_sleep_start(uint64_t *sleep_time)
  *
  ****************************************************************************/
 
-void esp32s3_pmstandby(uint64_t time_in_us)
+void esp32s3_pmstandby(uint64_t time_in_us, bool bt_en)
 {
   uint64_t rtc_diff_us;
 
   /* Don't power down XTAL - powering it up takes different time on. */
+  esp32s3_sleep_reset_wakeup();
+  esp32s3_sleep_enable_gpio_wakeup();
+  if (bt_en)
+    {
+      esp32s3_sleep_enable_wifi_wakeup();
+    }
 
-  esp32s3_sleep_enable_gpio_wakeup(); // this is needed for RTC IO wakeup from Deep Sleep
-  // esp32s3_sleep_enable_bt_wakeup();
   esp32s3_sleep_enable_timer_wakeup(time_in_us);
   esp32s3_light_sleep_start(&rtc_diff_us);
   light_sleep_us += rtc_diff_us;
@@ -1131,6 +1162,7 @@ void IRAM_ATTR esp32s3_deep_sleep_start(void)
 
 void esp32s3_pmsleep(uint64_t time_in_us)
 {
+  esp32s3_sleep_reset_wakeup();
   esp32s3_sleep_enable_gpio_wakeup();
   esp32s3_sleep_enable_timer_wakeup(time_in_us);
   esp32s3_deep_sleep_start();

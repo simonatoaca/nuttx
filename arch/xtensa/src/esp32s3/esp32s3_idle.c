@@ -61,7 +61,11 @@
 #  define CONFIG_PM_SLEEP_WAKEUP_NSEC 0
 #endif
 
-#define DEEP_SLEEP_THRESH_MS (10000) // 1000 ms = 1 s
+#define MODEM_SLEEP_PERIOD_US (5 * 1000000)  // 5s
+#define LIGHT_SLEEP_PERIOD_US (60 * 1000000) // 60s
+#define DEEP_SLEEP_PERIOD_US  (LIGHT_SLEEP_PERIOD_US * 60)
+#define LIGHT_SLEEP_THRESH_MS  (LIGHT_SLEEP_PERIOD_US * 30)   // 1 min
+#define DEEP_SLEEP_THRESH_MS (300000 + MODEM_SLEEP_THRESH_MS) // 5 min
 
 #endif
 
@@ -85,30 +89,29 @@ static void esp32s3_pm_handler(enum pm_state_e systemstate)
   {
   case PM_NORMAL:
     reset_light_sleep_ms();
-    // esp32s3_pmstandby(200);
 #  if XCHAL_HAVE_INTERRUPTS
   __asm__ __volatile__ ("waiti 0");
 #  endif
     break;
 
   case PM_IDLE:
+      if (get_light_sleep_ms() < LIGHT_SLEEP_THRESH_MS)
+        {
+          /* Enter Modem Sleep, BT enabled */
+          esp32s3_pmstandby(MODEM_SLEEP_PERIOD_US, true);
+          break;
+        }
+  case PM_STANDBY:
       if (get_light_sleep_ms() < DEEP_SLEEP_THRESH_MS)
         {
-          esp32s3_pmstandby(30 * 1000000); // be careful 600ms
+          /* Enter Light Sleep, disabled */
+          esp32s3_pmstandby(LIGHT_SLEEP_PERIOD_US, false);
+          break;
         }
-      else
-        {
-          esp32s3_pmsleep(120 * 1000000 +
-                          CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
-        }
-
-    break;
-  case PM_STANDBY:
   case PM_SLEEP:
     {
-    /* Enter Force-sleep mode */
-      esp32s3_pmsleep(CONFIG_PM_SLEEP_WAKEUP_SEC * 1000000 +
-                      CONFIG_PM_SLEEP_WAKEUP_NSEC / 1000);
+      /* Enter Deep Sleep mode */
+      esp32s3_pmsleep(DEEP_SLEEP_PERIOD_US);
     }
     break;
 

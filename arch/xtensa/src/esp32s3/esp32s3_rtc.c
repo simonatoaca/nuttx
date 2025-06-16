@@ -2276,8 +2276,8 @@ void IRAM_ATTR esp32s3_rtc_sleep_init(uint32_t flags)
       modifyreg32(RTC_CNTL_DIG_PWC_REG, RTC_CNTL_BT_FORCE_PU, 0);
       modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_BT_PD_EN);
 
-      modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_WIFI_FORCE_ISO);
-      modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_WIFI_FORCE_PD);
+      modifyreg32(RTC_CNTL_DIG_ISO_REG, 0, RTC_CNTL_BT_FORCE_ISO);
+      modifyreg32(RTC_CNTL_DIG_PWC_REG, 0, RTC_CNTL_BT_FORCE_PD);
     }
   else
     {
